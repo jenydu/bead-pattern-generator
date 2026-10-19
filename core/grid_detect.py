@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 
 PAD = 4  # zero-padding factor for the coarse spectrum
+MAX_LINES = 256  # rows (or columns) sampled for the edge profiles; more adds nothing
 
 
 @dataclass
@@ -49,8 +50,11 @@ def _edge_profile(arr, axis):
     `soft` adds the second difference so bilinear ramps, whose only features are kinks at
     cell centers, still show their period. `soft` is high-passed so smooth large features
     don't look like a low-frequency grid."""
-    a = arr.astype(np.float32)
     other = 1 - axis
+    n_lines = arr.shape[other]
+    if n_lines > MAX_LINES:  # the profile only needs a spread of lines, not every pixel
+        arr = np.take(arr, np.linspace(0, n_lines - 1, MAX_LINES).astype(int), axis=other)
+    a = arr.astype(np.float32)
     d1 = np.abs(np.diff(a, axis=axis)).sum(axis=-1)
     hard = np.sqrt(np.maximum(d1 - NOISE, 0)).sum(axis=other).astype(np.float64)
     d2 = np.abs(np.diff(a, n=2, axis=axis)).sum(axis=-1)  # bin j at coordinate j+1.5
@@ -60,12 +64,10 @@ def _edge_profile(arr, axis):
     return _highpass(hard + g2c), hard
 
 
-def _spectrum(prof):
-    n = len(prof)
-    x = prof * np.hanning(n)
-    p = np.abs(np.fft.rfft(x, n=PAD * n)) ** 2
-    f = np.fft.rfftfreq(PAD * n)  # cycles per bin
-    return f, p
+def _spectrum(prof, nfft):
+    """Power spectrum on a frequency grid shared by both axes (cycles per bin)."""
+    x = prof * np.hanning(len(prof))
+    return np.fft.rfftfreq(nfft), np.abs(np.fft.rfft(x, n=nfft)) ** 2
 
 
 def _noise_floor(p, width):
@@ -79,12 +81,16 @@ def _comb_candidates(profs, min_period, max_period, harmonics=4):
 
     comb_score is the mean log prominence over the line and its harmonics: a real
     fundamental has strong lines at f, 2f, 3f; f/2 has weak lines at f/2, 3f/2."""
-    total = 0.0
+    nfft = PAD * max(len(p) for p in profs)
+    prom = 0.0
     for prof in profs:
-        f, p = _spectrum(prof)
-        total = total + p / max(p.sum(), 1e-12)
-    floor = _noise_floor(total, 8 * PAD + 1)
-    prom = total / np.maximum(floor, 1e-18)
+        f, p = _spectrum(prof, nfft)
+        p = p / max(p.sum(), 1e-12)
+        # each axis against its own noise floor; the window is ~8 natural bins of that axis
+        width = int(8 * nfft / len(prof)) | 1
+        prom = prom + p / np.maximum(_noise_floor(p, width), 1e-18)
+    prom = prom / len(profs)  # mean over axes
+    total = prom
     lp = np.log1p(prom)
     band = (f >= 1 / max_period) & (f <= 1 / min_period)
     peak = np.zeros(len(f), bool)
@@ -97,7 +103,8 @@ def _comb_candidates(profs, min_period, max_period, harmonics=4):
             if j + 2 >= len(f) or f[j] > 0.5:
                 break
             vals.append(lp[max(j - 2, 0):j + 3].max())
-        out.append((1 / f[i], float(np.mean(vals)), float(prom[i])))
+        if vals:
+            out.append((1 / f[i], float(np.mean(vals)), float(prom[i])))
     return out
 
 
@@ -121,7 +128,7 @@ def _phase(soft, hard, p):
     # cell *centers* and the hard profile is flat there, so shift by half a cell.
     k = np.floor((pos - off) / p + 0.5)
     on = np.abs(pos - off - k * p) < max(0.5, 0.1 * p)
-    if hard[on].mean() < 1.15 * hard.mean():
+    if on.any() and hard[on].mean() < 1.15 * hard.mean():
         off = (off + p / 2) % p
     return off
 
@@ -133,8 +140,17 @@ def _layout(n, p, off):
     return start, max(count, 1)
 
 
-def detect_grid(arr, square=True, min_cells=6, min_prominence=8.0):
-    """arr: (H, W, C) array. Returns a Grid; period 1 if no pixel structure is found."""
+def _harmonic(a, b, tol=0.04):
+    """True if a and b differ by roughly a whole factor (2x, 3x, 4x), not a real aspect."""
+    r = max(a, b) / min(a, b)
+    return any(abs(r - n) < tol * n for n in (2, 3, 4))
+
+
+def detect_grid(arr, square=None, min_cells=6, min_prominence=8.0):
+    """arr: (H, W, C) array. Returns a Grid; period 1 if no pixel structure is found.
+
+    square: None = decide (pixels may be wider than tall if the image was stretched),
+    True = force one period for both axes, False = always fit the axes separately."""
     arr = np.asarray(arr)
     h, w = arr.shape[:2]
     sizes = {"x": w, "y": h}
@@ -160,24 +176,26 @@ def detect_grid(arr, square=True, min_cells=6, min_prominence=8.0):
         p, _, prom = max(good, key=lambda c: c[0])
         return p, prom
 
-    if square:
-        p, conf = pick(["x", "y"])
-        periods = {"x": p, "y": p}
-    else:
+    p, conf = pick(["x", "y"])
+    periods = {"x": p, "y": p}
+    use_square = True
+    if square is not True:
         px, cx = pick(["x"])
         py, cy = pick(["y"])
-        periods = {"x": px, "y": py}
-        conf = min(cx, cy)
+        stretched = (px and py and abs(px - py) > 0.04 * max(px, py)
+                     and not _harmonic(px, py))
+        if square is False or stretched:
+            periods, conf, use_square = {"x": px, "y": py}, min(cx, cy), False
 
     if any(periods[a] is None or np.abs(soft[a]).sum() == 0 for a in "xy"):
-        periods = {"x": None, "y": None} if square else periods
+        periods = {"x": None, "y": None} if use_square else periods
     fitted = {a: _refine(soft[a], hard[a], periods[a]) for a in "xy" if periods[a]}
     for a, (p, _) in list(fitted.items()):
         # images are usually exactly n cells wide: snap to size/n when we are that close
         q = sizes[a] / max(round(sizes[a] / p), 1)
         if abs(q - p) < 0.006 * p:
             fitted[a] = (q, _phase(soft[a], hard[a], q))
-    if square and len(fitted) == 2:
+    if use_square and len(fitted) == 2:
         p = (fitted["x"][0] + fitted["y"][0]) / 2  # square pixels: share one period
         fitted = {a: (p, _phase(soft[a], hard[a], p)) for a in "xy"}
     out, final = {}, {}

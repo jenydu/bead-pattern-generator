@@ -15,8 +15,10 @@ def test_all_brands_load(key):
     assert len(p) > 0 and p.rgb.shape == (len(p), 3)
 
 
-def test_mard_count():
-    assert len(load_palette("mard")) == 291
+def test_mard_counts():
+    assert len(load_palette("mard_291")) == 291
+    p = load_palette("mard_221")
+    assert len(p) == 221 and not any(r[0] in "PQRTYZ" for r in p.refs)
 
 
 def test_lab_known_values():
@@ -37,7 +39,7 @@ def test_de2000_sharma_pairs():
 
 
 def test_match_exact_and_order():
-    p = load_palette("mard")
+    p = load_palette("mard_291")
     idx = p.match(p.rgb[None, :, :])[0]
     # duplicates in rgb may map to another ref, but the color must be identical
     assert (p.rgb[idx] == p.rgb).all()
@@ -46,5 +48,5 @@ def test_match_exact_and_order():
 
 
 def test_subset():
-    p = load_palette("mard").subset(["A1", "B1"])
+    p = load_palette("mard_291").subset(["A1", "B1"])
     assert len(p) == 2

@@ -5,7 +5,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from core.clean import sample_cells, unify_colors
+from core.clean import (clear_background, crop_to_content, sample_cells, trim_border,
+                        unify_colors)
 from core.grid_detect import detect_grid
 from core.palette import load_palette
 from core.pattern import build_pattern
@@ -14,16 +15,18 @@ from core.render import render_chart, tile_boxes
 SAMPLE = Path("/Users/u1082736/Downloads/cataloe-128.png")
 
 
-def make_art(n, seed=0, k=8):
+def make_art(n, seed=0, k=8, m=None):
+    """n rows x m columns (square by default) of random ellipses on a plain background."""
+    m = m or n
     rng = np.random.default_rng(seed)
     pal = rng.integers(0, 256, (k, 3))
-    a = np.zeros((n, n), int)
-    yy, xx = np.mgrid[:n, :n]
-    for _ in range(25):
-        cy, cx = rng.uniform(0, n, 2)
-        ry, rx = rng.uniform(1, n / 5, 2)
-        m = ((yy - cy) / ry) ** 2 + ((xx - cx) / rx) ** 2 < 1
-        a[m] = rng.integers(1, k)
+    a = np.zeros((n, m), int)
+    yy, xx = np.mgrid[:n, :m]
+    for _ in range(max(25, n * m // 40)):
+        cy, cx = rng.uniform(0, n), rng.uniform(0, m)
+        ry, rx = rng.uniform(1, n / 5), rng.uniform(1, m / 5)
+        inside = ((yy - cy) / ry) ** 2 + ((xx - cx) / rx) ** 2 < 1
+        a[inside] = rng.integers(1, k)
     return pal[a].astype(np.uint8)
 
 
@@ -42,6 +45,21 @@ def test_detect_sharp_upscale(n, scale):
     g = detect_grid(upscale(make_art(n, seed=n), scale))
     assert (g.nx, g.ny) == (n, n)
     assert g.period_x == pytest.approx(scale, rel=0.01)
+
+
+@pytest.mark.parametrize("nx,ny,scale", [(48, 20, 6), (20, 60, 7), (60, 30, 8), (64, 40, 50)])
+def test_detect_non_square(nx, ny, scale):
+    g = detect_grid(upscale(make_art(ny, seed=nx, m=nx), scale))
+    assert (g.nx, g.ny) == (nx, ny)
+    assert g.period_x == pytest.approx(scale, rel=0.01)
+
+
+def test_detect_large_image_is_fast():
+    import time
+    img = upscale(make_art(32, seed=7), 100)  # 3200 x 3200
+    t = time.time()
+    g = detect_grid(img)
+    assert (g.nx, g.ny) == (32, 32) and time.time() - t < 2
 
 
 def test_detect_jpeg_noise():
@@ -79,13 +97,13 @@ def test_unify_merges_close_colors():
 def test_transparent_cells_have_no_bead():
     a = np.zeros((2, 2, 4), np.uint8)
     a[0, 0] = (255, 255, 255, 255)
-    p = build_pattern(a, load_palette("mard"))
+    p = build_pattern(a, load_palette("mard_291"))
     assert p.cells[0, 0] >= 0 and (p.cells.ravel()[1:] == -1).all()
     assert sum(c["count"] for c in p.legend()) == 1
 
 
 def test_legend_in_brand_order():
-    pal = load_palette("mard")
+    pal = load_palette("mard_291")
     a = np.zeros((1, 3, 4), np.uint8)
     a[..., 3] = 255
     for i, ref in enumerate(["B1", "A10", "A2"]):
@@ -105,8 +123,8 @@ def test_tiles_cover_pattern_evenly():
 
 def test_render_chart_size():
     a = np.full((4, 6, 4), 255, np.uint8)
-    img = render_chart(build_pattern(a, load_palette("mard")), cell=20)
-    assert img.size == (18 + 6 * 20 + 1, 18 + 4 * 20 + 1)
+    img = render_chart(build_pattern(a, load_palette("mard_291")), cell=20)
+    assert img.size == (16 + 6 * 20 + 2, 16 + 4 * 20 + 2)
 
 
 @pytest.mark.skipif(not SAMPLE.exists(), reason="sample image not available")
@@ -120,8 +138,104 @@ def test_api_run():
     art = make_art(24, seed=1)
     buf = io.BytesIO()
     Image.fromarray(upscale(art, 5)).save(buf, "PNG")
-    out = api.run(buf.getvalue(), "mard")
+    out = api.run(buf.getvalue(), "mard_291")
     assert (out["grid"]["nx"], out["grid"]["ny"]) == (24, 24)
     assert out["legend"] and out["tiles"] and out["preview"][:4] == b"\x89PNG"
     out = api.run(buf.getvalue(), "perler", cells_x=12, cells_y=12)
     assert out["grid"]["manual"] and out["grid"]["nx"] == 12
+
+
+def _three_color_pattern():
+    pal = load_palette("mard_291")
+    a = np.zeros((1, 4, 4), np.uint8)
+    a[..., 3] = 255
+    for i, ref in enumerate(["B1", "A10", "H7", "A10"]):
+        a[0, i, :3] = pal.rgb[pal.refs.index(ref)]
+    return build_pattern(a, pal)
+
+
+def test_legend_orders():
+    p = _three_color_pattern()
+    assert [c["ref"] for c in p.legend("code")] == ["A10", "B1", "H7"]
+    assert [c["ref"] for c in p.legend("count")][0] == "A10"
+    assert [c["group"] for c in p.legend("group")] == ["Series A", "Series B", "Series H"]
+    with pytest.raises(ValueError):
+        p.legend("nope")
+
+
+def test_board_tiles():
+    boxes = tile_boxes((40, 70), board=29)
+    assert len(boxes) == 3 * 2  # 70 cols -> 3 boards wide, 40 rows -> 2 boards tall
+    assert boxes[0] == (0, 0, 29, 29) and boxes[-1] == (58, 29, 70, 40)
+
+
+def test_api_board_and_order():
+    from core import api
+    buf = io.BytesIO()
+    Image.fromarray(upscale(make_art(40, seed=1, m=70), 5)).save(buf, "PNG")
+    out = api.run(buf.getvalue(), "mard_221", board=29, order="group")
+    assert (out["grid"]["nx"], out["grid"]["ny"]) == (70, 40)
+    assert len(out["tiles"]) == 6 and out["tiles"][4]["board"] == [2, 2]
+    assert out["total"] == sum(c["count"] for c in out["legend"])
+
+
+def test_non_square_image():
+    from core import api
+    buf = io.BytesIO()
+    Image.fromarray(upscale(make_art(20, seed=2, m=48), 6)).save(buf, "PNG")
+    assert api.run(buf.getvalue())["grid"]["nx"] == 48
+
+
+def test_trim_border_removes_frame_shadow_and_canvas():
+    art = make_art(24, seed=11)
+    img = upscale(art, 10)  # 240 x 240
+    framed = np.full((400, 420, 3), 185, np.uint8)  # gray frame
+    framed[40:380, 40:400] = 255  # white canvas
+    framed[378:388, 44:404] = 225  # faint shadow strip below/right of the canvas
+    framed[100:340, 90:330] = img
+    cropped, (x0, y0, x1, y1) = trim_border(framed)
+    assert abs(x0 - 90) <= 12 and abs(y0 - 100) <= 12
+    assert abs(cropped.shape[1] - 240) <= 24 and abs(cropped.shape[0] - 240) <= 24
+
+
+def test_trim_keeps_dark_ring_that_is_part_of_the_art():
+    art = make_art(16, seed=2)
+    art[0, :] = art[-1, :] = art[:, 0] = art[:, -1] = 0  # black ring
+    img = upscale(art, 8)
+    assert trim_border(img)[0].shape[:2] == img.shape[:2]
+
+
+def test_gridlines_on_white_do_not_confuse_detection():
+    art = np.full((20, 30, 3), 255, np.uint8)
+    art[5:15, 8:22] = make_art(10, seed=4, m=14)
+    art[5:15, 8:22][art[5:15, 8:22].sum(-1) > 700] = (30, 30, 30)
+    img = upscale(art, 12).copy()
+    img[::12, :] = 235  # faint editor grid
+    img[:, ::12] = 235
+    g = detect_grid(trim_border(img)[0])
+    assert g.period_x == pytest.approx(12, rel=0.01)
+
+
+def test_stretched_pixels_get_separate_periods():
+    art = make_art(24, seed=5, m=32)
+    im = Image.fromarray(art).resize((32 * 17, 24 * 15), Image.NEAREST)
+    g = detect_grid(np.array(im))
+    assert (g.nx, g.ny) == (32, 24)
+    assert g.period_x == pytest.approx(17, rel=0.01) and g.period_y == pytest.approx(15, rel=0.01)
+
+
+def test_clear_background_keeps_enclosed_white():
+    a = np.zeros((5, 5, 4), np.uint8)
+    a[..., :3] = 255
+    a[..., 3] = 255
+    a[1, 1:4] = a[3, 1:4] = (0, 0, 0, 255)
+    a[2, 1] = a[2, 3] = (0, 0, 0, 255)  # ring around the white cell at (2, 2)
+    out = clear_background(a)
+    assert out[0, 0, 3] == 0 and out[4, 4, 3] == 0   # outside is empty
+    assert out[2, 2, 3] == 255                       # enclosed white stays a bead
+
+
+def test_crop_to_content():
+    a = np.zeros((6, 6, 4), np.uint8)
+    a[2:4, 1:3] = 255
+    assert crop_to_content(a).shape[:2] == (2, 2)

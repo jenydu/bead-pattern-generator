@@ -32,6 +32,24 @@
       <button type="button" id="auto">Use detected grid</button>
     </fieldset>
 
+    <label>Pegboard size (cells per side)
+      <input type="number" id="board" min="4" max="200" inputmode="numeric" placeholder="29">
+      <span class="note">Optional. Splits the chart into boards of this size, numbered from 1 on each board, with red lines on the full sheet. Leave blank for no split.</span>
+    </label>
+
+    <label>Bead list order
+      <select id="order">
+        <option value="code">By code (brand order)</option>
+        <option value="group">By series (A, B, C...) or color family</option>
+        <option value="count">By count (most first)</option>
+      </select>
+    </label>
+
+    <label class="check"><input type="checkbox" id="clean" checked>
+      Trim borders and remove the white / transparent background
+      <span class="note">Untick if white beads are part of your design's background.</span>
+    </label>
+
     <label>Merge similar colors: <output id="tolout">6</output>
       <input type="range" id="tol" min="0" max="20" step="1" value="6">
       <span class="note">Raise this if blur or compression left stray shades. 0 keeps every shade.</span>

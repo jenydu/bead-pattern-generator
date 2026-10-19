@@ -1,4 +1,5 @@
 """Brand palettes (beadcolors raw CSVs), RGB->Lab, nearest-color matching."""
+import colorsys
 import csv
 import re
 from dataclasses import dataclass
@@ -10,7 +11,8 @@ PALETTE_DIR = Path(__file__).resolve().parent.parent / "data" / "palettes"
 
 # file stem -> label. diamondDotz is diamond painting, so it is not offered.
 BRANDS = {
-    "mard": "MARD",
+    "mard_291": "MARD 291 (full)",
+    "mard_221": "MARD 221 (basic, A-H and M)",
     "perler": "Perler",
     "perler_mini": "Perler Mini",
     "perler_caps": "Perler Caps",
@@ -30,6 +32,42 @@ BRANDS = {
 def natural_key(ref):
     """A2 < A10 < B1; non-numeric parts compare as text."""
     return [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", ref) if p]
+
+
+FAMILIES = ["Red", "Pink", "Orange", "Brown", "Yellow", "Green", "Teal", "Blue", "Purple",
+            "White / Gray / Black"]
+
+
+def color_family(rgb):
+    """Rough hue family of an RGB color, for grouping beads the way people talk about them."""
+    r, g, b = (int(v) / 255 for v in rgb)
+    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    h *= 360
+    if s < 0.12 or v < 0.24:
+        return "White / Gray / Black"
+    if h >= 335 or h < 15:
+        if v < 0.5:
+            return "Brown"
+        return "Pink" if s < 0.5 and v > 0.8 else "Red"
+    if h < 45:
+        return "Brown" if v < 0.65 or (s < 0.55 and v < 0.9) else "Orange"
+    if h < 70:
+        return "Brown" if (v < 0.5 and h < 60) else "Yellow"
+    if h < 165:
+        return "Green"
+    if h < 200:
+        return "Teal"
+    if h < 255:
+        return "Blue"
+    if h < 295:
+        return "Purple"
+    return "Pink" if v > 0.8 or s < 0.6 else "Purple"
+
+
+def series_of(ref):
+    """Leading letters of a code: A1 -> A, ZG3 -> ZG, 80-15179 -> ''."""
+    m = re.match(r"[A-Za-z]+", ref)
+    return m.group().upper() if m else ""
 
 
 def rgb_to_lab(rgb):
@@ -99,6 +137,28 @@ class Palette:
             raise ValueError("no matching refs")
         return Palette(self.key, self.label, [self.refs[i] for i in idx],
                        [self.names[i] for i in idx], self.rgb[idx], self.lab[idx])
+
+    @property
+    def grouping(self):
+        """"series" if the code letters split the palette into real groups (MARD A..H, M, P,
+        ... or Artkal M's MA..MH), else "hue". A brand whose codes share one letter
+        (Hama H01.., Nabbi N01..), have none (Perler 80-15179), or are 80-90% one prefix
+        (Artkal C and S) is grouped by color family instead."""
+        counts = {}
+        for r in self.refs:
+            k = series_of(r)
+            counts[k] = counts.get(k, 0) + 1
+        if len(counts) >= 2 and "" not in counts and max(counts.values()) <= 0.6 * len(self):
+            return "series"
+        return "hue"
+
+    def group_of(self, i):
+        """(sort key, label) of the group palette entry i belongs to."""
+        if self.grouping == "series":
+            s = series_of(self.refs[i])
+            return natural_key(s), f"Series {s}"
+        fam = color_family(self.rgb[i])
+        return FAMILIES.index(fam), fam
 
     def order(self):
         """Indices in the brand's own order (natural sort of ref)."""

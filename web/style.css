@@ -31,6 +31,7 @@ input, select, button, .button {
   background: #fff;
   color: inherit;
 }
+label.check input { display: inline-block; width: auto; min-height: 0; margin-right: .5rem; }
 input[type=range] { padding: 0; border: 0; }
 input[type=file] { border: 0; padding-left: 0; }
 button, .button {
@@ -59,6 +60,7 @@ th, td { border-bottom: 1px solid #ccc; padding: .3rem .5rem; text-align: left; 
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .swatch { display: inline-block; width: 2.5rem; height: 1.2rem; border: 1px solid #666; vertical-align: middle; }
 tfoot td { font-weight: 600; }
+tr.family th { background: #f2f2f2; font-size: .9rem; border-bottom: 1px solid #999; }
 
 footer { margin-top: 2rem; font-size: .85rem; color: #555; }
 

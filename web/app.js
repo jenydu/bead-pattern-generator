@@ -49,6 +49,9 @@ async function refresh() {
       cx: cx > 0 && cy > 0 ? cx : 0,
       cy: cx > 0 && cy > 0 ? cy : 0,
       tol: parseFloat($("tol").value),
+      board: parseInt($("board").value, 10) || 0,
+      order: $("order").value,
+      clean: $("clean").checked,
     });
     if (token !== runToken) return;
     show(r);
@@ -64,14 +67,16 @@ function show(r) {
   const { grid, image } = r;
   $("cx").placeholder = grid.detected[0];
   $("cy").placeholder = grid.detected[1];
+  const trimmed = !grid.manual && (grid.nx !== grid.detected[0] || grid.ny !== grid.detected[1])
+    ? ` After removing the background the pattern is ${grid.nx} × ${grid.ny}.` : "";
   $("gridinfo").textContent = grid.manual
     ? `Using ${grid.nx} × ${grid.ny} (set by you). Detected ${grid.detected[0]} × ${grid.detected[1]}.`
     : grid.period > 1
-      ? `Detected ${grid.nx} × ${grid.ny} pixels (each about ${grid.period.toFixed(2)} px wide in the image).`
+      ? `Detected ${grid.detected[0]} × ${grid.detected[1]} pixels (each about ${grid.period.toFixed(2)} px wide in the image).${trimmed}`
       : `The image looks like it is already 1 pixel per bead: ${grid.nx} × ${grid.ny}. If it is scaled up, enter the number of columns and rows.`;
 
   $("preview").src = png(r.preview);
-  const total = r.legend.reduce((n, c) => n + c.count, 0);
+  const total = r.total;
   $("summary").textContent = `${grid.nx} × ${grid.ny}, ${r.legend.length} colors, ${total} beads.`;
 
   const tiles = $("tiles");
@@ -82,9 +87,11 @@ function show(r) {
     fig.className = "tile";
     fig.style.margin = "0 0 1.5rem";
     const cap = document.createElement("figcaption");
-    cap.textContent = r.tiles.length > 1
-      ? `Part ${i + 1} of ${r.tiles.length}: columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`
-      : "";
+    cap.textContent = t.board
+      ? `Board ${i + 1} of ${r.tiles.length} (board row ${t.board[0]}, column ${t.board[1]}); pattern columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`
+      : r.tiles.length > 1
+        ? `Part ${i + 1} of ${r.tiles.length}: columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`
+        : "";
     const box = document.createElement("div");
     box.className = "scroll";
     const img = document.createElement("img");
@@ -97,7 +104,17 @@ function show(r) {
 
   const body = $("legend").tBodies[0];
   body.replaceChildren();
+  let family = null;
   for (const c of r.legend) {
+    if ($("order").value === "group" && c.group !== family) {
+      family = c.group;
+      const hr = body.insertRow();
+      hr.className = "family";
+      const th = document.createElement("th");
+      th.colSpan = 3;
+      th.textContent = family;
+      hr.append(th);
+    }
     const tr = body.insertRow();
     const sw = document.createElement("span");
     sw.className = "swatch";
@@ -132,6 +149,9 @@ $("file").addEventListener("change", async (e) => {
 $("brand").addEventListener("change", schedule);
 $("cx").addEventListener("input", schedule);
 $("cy").addEventListener("input", schedule);
+$("board").addEventListener("input", schedule);
+$("order").addEventListener("change", schedule);
+$("clean").addEventListener("change", schedule);
 $("tol").addEventListener("input", () => {
   $("tolout").textContent = $("tol").value;
   schedule();

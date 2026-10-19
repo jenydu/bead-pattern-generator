@@ -38,7 +38,10 @@ cli.py                 image -> pattern from the terminal
   computed by us, so we don't depend on its generated `gen/` folders.
 - Pages can't read a sibling repo at runtime, so a vendored snapshot is committed.
   Updating = rerun `build.py`.
-- Brands: mard, perler (+mini, caps), hama (+mini, maxi), nabbi, artkal a/c/m/r/s, yant.
+- MARD ships as two charts: `mard_291` (all of beadcolors' mard.csv) and `mard_221` (series A-H
+  and M only; the code list matches the 221-color "basic" palette in
+  Jett-Wu/Perler_Beads_Generator, but RGB values stay beadcolors'). `build.py` generates both.
+- Brands: mard_291, mard_221, perler (+mini, caps), hama (+mini, maxi), nabbi, artkal a/c/m/r/s, yant.
   `diamondDotz` is diamond painting, not beads, so it is hidden from the picker.
 - Per-brand display names live in a small `BRANDS` table in `palette.py`
   (file stem -> label, bead size, shown-in-UI).
@@ -57,6 +60,8 @@ image bytes
 
 ### grid_detect
 - Input may be a scaled (possibly non-integer) and/or blurred/JPEG'd pixel art.
+- Cost is independent of image size: profiles use at most 256 evenly spread rows/columns, and
+  x and y may differ in length (non-square images). A 3200x2000 image is detected in ~0.05 s.
 - Per axis, build an edge profile (thresholded first + second differences, so JPEG noise is
   dropped and bilinear ramps still show their kinks). Pixel borders form a periodic pulse train.
 - Spectrum of the profile: the real pixel size is the lowest-frequency line whose harmonics
@@ -68,6 +73,16 @@ image bytes
   columns/rows manually.
 - Known limits: patterns scaled by 2x or less, and heavy blur on sparse art, can miss.
   Tests cover sharp, JPEG-noisy and fractional upscales.
+
+### trim / background (clean.py)
+- `trim_border`: crops plain light rows/columns on all four sides, repeated until stable, so a
+  gray screenshot frame, drop shadow and white canvas all go. Plain = one near-uniform light
+  color (tolerates JPEG noise and faint editor gridlines). Dark rings are never trimmed.
+- After sampling cells: `clear_background` empties near-white/transparent cells connected to
+  the edge (4-neighbour flood fill; white inside an outline stays), `crop_to_content` drops
+  empty outer rows/columns. Switchable ("Trim borders..." checkbox, `--keep-edges`).
+- Grid detection allows non-square pixels (separate x/y periods when they differ by >4% and
+  are not a 2-4x harmonic of each other).
 
 ### clean
 - Per cell: median of the central region, ignoring blurred borders.
@@ -103,5 +118,8 @@ GitHub Pages serves `web/` (Actions workflow runs `build.py` and publishes). No 
 
 ## Status
 Done: palettes + build, grid detection, cleaning, matching, chart rendering, CLI, web page,
-Pages workflow (untested until first push). Not done: "colors I own" subset in the UI
+Pages workflow (untested until first push). Also: pegboard size (splits the chart into boards, local 1..N numbering, red lines on the
+sheet), bead list ordered by code / group / count (group = series letter when the brand has real
+series, i.e. MARD and Artkal M; otherwise hue family), a printable sheet with counts.
+Not done: "colors I own" subset in the UI
 (`Palette.subset` exists), 2x-or-less / heavily blurred detection.

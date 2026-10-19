@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .clean import transparent_mask
-from .palette import Palette
+from .palette import Palette, rgb_to_lab
 
 
 @dataclass
@@ -20,12 +20,33 @@ class Pattern:
         used, n = np.unique(self.cells[self.cells >= 0], return_counts=True)
         return dict(zip(used.tolist(), n.tolist()))
 
-    def legend(self):
-        """Used colors in the brand's own order: [{ref, name, rgb, count}, ...]."""
+    def legend(self, order="code"):
+        """Used colors: [{ref, name, rgb, count, group}, ...].
+
+        order: "code" = the brand's own order (MARD: A1, A2, ... A10, ... B1);
+        "group" = by series letter (A, B, ...) when the brand has them, otherwise by hue
+        family, light to dark; "count" = most beads first."""
         counts = self.counts()
-        return [{"ref": self.palette.refs[i], "name": self.palette.names[i],
-                 "rgb": self.palette.rgb[i].tolist(), "count": counts[i]}
-                for i in self.palette.order() if i in counts]
+        rows = []
+        for i in self.palette.order():
+            if i in counts:
+                rgb = self.palette.rgb[i]
+                key, label = self.palette.group_of(i)
+                rows.append({"ref": self.palette.refs[i], "name": self.palette.names[i],
+                             "rgb": rgb.tolist(), "count": counts[i], "group": label,
+                             "_key": key, "_light": float(rgb_to_lab(rgb)[0])})
+        if order == "group":
+            if self.palette.grouping == "series":  # rows are already in code order
+                rows.sort(key=lambda r: r["_key"])
+            else:
+                rows.sort(key=lambda r: (r["_key"], -r["_light"]))
+        elif order == "count":
+            rows.sort(key=lambda r: -r["count"])  # stable: ties stay in code order
+        elif order != "code":
+            raise ValueError(f"unknown order {order!r}")
+        for r in rows:
+            del r["_key"], r["_light"]
+        return rows
 
     def rgb_image(self, background=(255, 255, 255)):
         out = np.empty(self.cells.shape + (3,), np.uint8)
