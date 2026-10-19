@@ -277,3 +277,10 @@ def test_tiny_image_is_taken_pixel_for_pixel():
     Image.fromarray(make_art(24, seed=9)).save(buf, "PNG")
     out = api.run(buf.getvalue())
     assert out["kind"] == "pixels" and out["grid"]["nx"] == 24
+
+
+def test_unknown_or_empty_brand_falls_back_to_default():
+    from core import api
+    buf = io.BytesIO()
+    Image.fromarray(upscale(make_art(16, seed=3), 6)).save(buf, "PNG")
+    assert api.run(buf.getvalue(), brand="")["legend"]

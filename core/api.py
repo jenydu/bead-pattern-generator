@@ -36,6 +36,8 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
     order: "code" | "group" | "count" for the bead list. Returns plain dict/list/str/bytes."""
     data = data.to_py().tobytes() if hasattr(data, "to_py") else bytes(data)
     prep = _prepare(data, bool(clean_edges))
+    if brand not in BRANDS:
+        brand = "mard_291"
     palette = load_palette(brand)
     pattern = build(prep, palette, int(cells_x), int(cells_y), tolerance, bool(clean_edges))
     ny, nx = pattern.shape

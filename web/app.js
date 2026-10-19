@@ -41,6 +41,10 @@ const blobUrl = (data, type) => {
 
 async function refresh() {
   if (!imageBytes) return;
+  if (!$("brand").value) {   // Python is still loading; the startup code calls refresh() again
+    setStatus("Loading Python (first visit downloads about 10 MB)…");
+    return;
+  }
   const token = ++runToken;
   setStatus("Working…");
   try {
