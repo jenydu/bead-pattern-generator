@@ -1,91 +1,112 @@
-"""Draw a Pattern as PNG: chart tiles (bead code in each cell) and a full printable sheet."""
+"""Draw a Pattern as SVG: chart tiles (bead code in each cell) and a full printable sheet.
+
+SVG rather than a PNG: text and lines stay sharp at any zoom, on high-DPI screens and in a
+printed / saved PDF, where a raster image would be resampled and look soft."""
 import io
+from xml.sax.saxutils import escape
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
-GRID_MINOR = (205, 205, 205)
-GRID_MAJOR = (110, 110, 110)
-BOARD_LINE = (214, 40, 57)
-INK = (25, 25, 25)
-MUTED = (110, 110, 110)
-
-
-def _font(size):
-    try:
-        return ImageFont.load_default(size=size)
-    except TypeError:  # Pillow < 10.1
-        return ImageFont.load_default()
+FONT = "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+GRID_MINOR = "#cdcdcd"
+GRID_MAJOR = "#6e6e6e"
+BOARD_LINE = "#d62839"
+INK = "#191919"
+MUTED = "#6e6e6e"
 
 
-def _text_color(rgb):
+def _hex(rgb):
+    return "#%02x%02x%02x" % tuple(int(v) for v in rgb)
+
+
+def _text_fill(rgb):
     r, g, b = (int(v) for v in rgb)
-    return (0, 0, 0) if 0.299 * r + 0.587 * g + 0.114 * b > 140 else (255, 255, 255)
+    return "#000" if 0.299 * r + 0.587 * g + 0.114 * b > 140 else "#fff"
 
 
-def _bold(d, xy, text, fill, font, anchor="mm", weight=1):
-    """Pillow only ships a regular face; a stroke in the same color makes it bold."""
-    d.text(xy, text, fill=fill, font=font, anchor=anchor, stroke_width=weight, stroke_fill=fill)
+def _num(v):
+    return f"{v:.1f}".rstrip("0").rstrip(".")
 
 
-def render_chart(pattern, x0=0, y0=0, x1=None, y1=None, cell=44, major=5,
-                 local_numbers=False, board=None):
-    """Render cells [y0:y1, x0:x1] with every row/column numbered. Returns a PIL image.
+def _lines(xs, y0, y1, vertical=True):
+    if vertical:
+        return "".join(f"M{_num(x)} {_num(y0)}V{_num(y1)}" for x in xs)
+    return "".join(f"M{_num(y0)} {_num(x)}H{_num(y1)}" for x in xs)
 
-    local_numbers: number from 1 at the top-left of this crop (for a pegboard tile),
-    otherwise numbers are positions in the whole pattern. board: draw red lines between
-    boards of that many cells (whole-pattern coordinates)."""
+
+def _chart_elements(pattern, x0, y0, x1, y1, cell, major, local_numbers, board):
+    """SVG elements for cells [y0:y1, x0:x1] in a (width, height) box with a numbered margin."""
     ny, nx = pattern.shape
     x1 = nx if x1 is None else x1
     y1 = ny if y1 is None else y1
     w, h = x1 - x0, y1 - y0
-    margin = int(cell * 0.8)
-    img = Image.new("RGB", (margin + w * cell + 2, margin + h * cell + 2), "white")
-    d = ImageDraw.Draw(img)
-    code_font = _font(max(int(cell * 0.38), 9))
-    num_font = _font(max(int(cell * 0.32), 9))
+    m = cell * 0.8
+    out = []
+    # cells
+    out.append('<g shape-rendering="crispEdges">')
+    texts = []
     for j in range(h):
         for i in range(w):
             idx = pattern.cells[y0 + j, x0 + i]
             if idx < 0:
                 continue
-            px, py = margin + i * cell, margin + j * cell
-            rgb = tuple(int(v) for v in pattern.palette.rgb[idx])
-            d.rectangle([px, py, px + cell, py + cell], fill=rgb)
-            _bold(d, (px + cell / 2 + 1, py + cell / 2 + 1), pattern.palette.refs[idx],
-                  _text_color(rgb), code_font, weight=0 if cell < 30 else 1)
+            rgb = pattern.palette.rgb[idx]
+            px, py = m + i * cell, m + j * cell
+            out.append(f'<rect x="{_num(px)}" y="{_num(py)}" width="{_num(cell)}" '
+                       f'height="{_num(cell)}" fill="{_hex(rgb)}"/>')
+            texts.append(f'<text x="{_num(px + cell / 2)}" y="{_num(py + cell / 2)}" '
+                         f'fill="{_text_fill(rgb)}">{escape(pattern.palette.refs[idx])}</text>')
+    out.append("</g>")
 
     def number(pos, local):
         return local if local_numbers else pos + local
 
-    for i in range(w + 1):
-        n = number(x0, i)
-        major_line = n % major == 0
-        x = margin + i * cell
-        d.line([x, margin, x, margin + h * cell], fill=GRID_MAJOR if major_line else GRID_MINOR,
-               width=2 if major_line else 1)
-    for j in range(h + 1):
-        n = number(y0, j)
-        major_line = n % major == 0
-        y = margin + j * cell
-        d.line([margin, y, margin + w * cell, y], fill=GRID_MAJOR if major_line else GRID_MINOR,
-               width=2 if major_line else 1)
+    xs_minor = [m + i * cell for i in range(w + 1) if number(x0, i) % major]
+    xs_major = [m + i * cell for i in range(w + 1) if number(x0, i) % major == 0]
+    ys_minor = [m + j * cell for j in range(h + 1) if number(y0, j) % major]
+    ys_major = [m + j * cell for j in range(h + 1) if number(y0, j) % major == 0]
+    box = (m, m + w * cell, m, m + h * cell)
+    for color, width, xs, ys in ((GRID_MINOR, 1, xs_minor, ys_minor),
+                                 (GRID_MAJOR, 1.6, xs_major, ys_major)):
+        d = _lines(xs, box[2], box[3]) + _lines(ys, box[0], box[1], vertical=False)
+        out.append(f'<path d="{d}" stroke="{color}" stroke-width="{width}" fill="none" '
+                   f'shape-rendering="crispEdges"/>')
+    out.append(f'<g font-family="{FONT}" font-size="{_num(cell * 0.34)}" text-anchor="middle" '
+               f'dominant-baseline="central">{"".join(texts)}</g>')
     if board:
-        for i in range(w + 1):
-            if (x0 + i) % board == 0 and 0 < x0 + i < nx:
-                x = margin + i * cell
-                d.line([x, margin, x, margin + h * cell], fill=BOARD_LINE, width=4)
-        for j in range(h + 1):
-            if (y0 + j) % board == 0 and 0 < y0 + j < ny:
-                y = margin + j * cell
-                d.line([margin, y, margin + w * cell, y], fill=BOARD_LINE, width=4)
+        bx = [m + i * cell for i in range(w + 1) if (x0 + i) % board == 0 and 0 < x0 + i < nx]
+        by = [m + j * cell for j in range(h + 1) if (y0 + j) % board == 0 and 0 < y0 + j < ny]
+        d = _lines(bx, box[2], box[3]) + _lines(by, box[0], box[1], vertical=False)
+        if d:
+            out.append(f'<path d="{d}" stroke="{BOARD_LINE}" stroke-width="3" fill="none"/>')
+    labels = []
     for i in range(w):
-        _bold(d, (margin + i * cell + cell / 2, margin / 2), str(number(x0, i + 1)), INK,
-              num_font, weight=0)
+        labels.append(f'<text x="{_num(m + i * cell + cell / 2)}" y="{_num(m / 2)}">'
+                      f'{number(x0, i + 1)}</text>')
     for j in range(h):
-        _bold(d, (margin / 2, margin + j * cell + cell / 2), str(number(y0, j + 1)), INK,
-              num_font, weight=0)
-    return img
+        labels.append(f'<text x="{_num(m / 2)}" y="{_num(m + j * cell + cell / 2)}">'
+                      f'{number(y0, j + 1)}</text>')
+    out.append(f'<g font-family="{FONT}" font-size="{_num(cell * 0.28)}" fill="{INK}" '
+               f'text-anchor="middle" dominant-baseline="central">{"".join(labels)}</g>')
+    return m + w * cell + 2, m + h * cell + 2, "".join(out)
+
+
+def _svg(width, height, body, scale=1.0):
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {_num(width)} {_num(height)}" '
+            f'width="{_num(width * scale)}" height="{_num(height * scale)}">'
+            f'<rect width="100%" height="100%" fill="#fff"/>{body}</svg>')
+
+
+def render_chart(pattern, x0=0, y0=0, x1=None, y1=None, cell=40, major=5,
+                 local_numbers=False, board=None):
+    """SVG text of cells [y0:y1, x0:x1], every row and column numbered.
+
+    local_numbers: number from 1 at the top-left of this crop (a pegboard tile), otherwise
+    numbers are positions in the whole pattern. board: red lines between boards of that
+    many cells (whole-pattern coordinates)."""
+    w, h, body = _chart_elements(pattern, x0, y0, x1, y1, cell, major, local_numbers, board)
+    return _svg(w, h, body)
 
 
 def tile_boxes(shape, tile=(32, 40), board=None):
@@ -104,29 +125,28 @@ def tile_boxes(shape, tile=(32, 40), board=None):
 
 
 def render_preview(pattern, scale=12):
-    """Small unlabeled overview of the whole pattern."""
+    """Small unlabeled overview of the whole pattern, as PNG bytes."""
     img = Image.fromarray(pattern.rgb_image())
-    return img.resize((img.width * scale, img.height * scale), Image.NEAREST)
+    img = img.resize((img.width * scale, img.height * scale), Image.NEAREST)
+    b = io.BytesIO()
+    img.save(b, "PNG")
+    return b.getvalue()
 
 
-def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=44):
-    """Printable sheet: title, whole chart (red lines between boards), bead counts."""
-    chart = render_chart(pattern, cell=cell, board=board)
+def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=40):
+    """Printable sheet as SVG: title, whole chart (red lines between boards), bead counts."""
+    cw, ch, chart = _chart_elements(pattern, 0, 0, None, None, cell, 5, False, board)
     pad = 36
-    width = max(chart.width, 900) + 2 * pad
+    width = max(cw, 900) + 2 * pad
     chip_w, chip_h, gap = 190, 52, 14
-    title_font, sub_font = _font(40), _font(22)
-    chip_font, count_font, fam_font = _font(24), _font(26), _font(22)
+    per_row = max(int((width - 2 * pad + gap) // (chip_w + gap)), 1)
 
-    # lay the legend out first so the sheet height is known
-    items, x, y = [], pad, 0
-    per_row = max((width - 2 * pad + gap) // (chip_w + gap), 1)
-    last, col = None, 0
+    items, y, col, last = [], 0, 0, None
     for c in legend:
         if show_groups and c["group"] != last:
             if col:
                 y += chip_h + gap
-            items.append(("family", c["group"], pad, y))
+            items.append(("group", c["group"], pad, y))
             y += 34
             last, col = c["group"], 0
         if col == per_row:
@@ -134,34 +154,32 @@ def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=44)
             col = 0
         items.append(("chip", c, pad + col * (chip_w + gap), y))
         col += 1
-    legend_h = y + chip_h
-
     head = 110
-    sheet = Image.new("RGB", (width, head + chart.height + 30 + legend_h + pad), "white")
-    d = ImageDraw.Draw(sheet)
-    d.text((pad, 24), title, fill=INK, font=title_font)
+    top = head + ch + 30
+    height = top + y + chip_h + pad
+
     sub = f"{pattern.shape[1]} x {pattern.shape[0]} cells"
     if board:
         sub += f", red lines every {board} cells (one pegboard)"
-    d.text((pad, 74), sub, fill=MUTED, font=sub_font)
-    sheet.paste(chart, (pad, head))
-    top = head + chart.height + 30
-    for kind, c, x, y in items:
-        y += top
-        if kind == "family":
-            d.text((x, y), c, fill=MUTED, font=fam_font)
+    parts = [f'<g font-family="{FONT}">',
+             f'<text x="{pad}" y="52" font-size="36" fill="{INK}">{escape(title)}</text>',
+             f'<text x="{pad}" y="86" font-size="20" fill="{MUTED}">{escape(sub)}</text>',
+             "</g>", f'<g transform="translate({pad} {head})">{chart}</g>']
+    for kind, c, x, yy in items:
+        yy += top
+        if kind == "group":
+            parts.append(f'<text x="{x}" y="{yy + 16}" font-family="{FONT}" font-size="20" '
+                         f'fill="{MUTED}">{escape(c)}</text>')
             continue
-        d.rounded_rectangle([x, y, x + chip_w, y + chip_h], radius=8, outline=(190, 190, 190),
-                            width=2, fill=(250, 250, 250))
-        rgb = tuple(c["rgb"])
-        d.rounded_rectangle([x + 6, y + 6, x + 96, y + chip_h - 6], radius=6, fill=rgb)
-        _bold(d, (x + 51, y + chip_h / 2 + 1), c["ref"], _text_color(rgb), chip_font)
-        d.text((x + chip_w - 12, y + chip_h / 2 + 1), str(c["count"]), fill=INK,
-               font=count_font, anchor="rm")
-    return sheet
-
-
-def to_png(img):
-    b = io.BytesIO()
-    img.save(b, "PNG")
-    return b.getvalue()
+        rgb = c["rgb"]
+        parts.append(
+            f'<rect x="{x}" y="{yy}" width="{chip_w}" height="{chip_h}" rx="8" fill="#fafafa" '
+            f'stroke="#bebebe" stroke-width="2"/>'
+            f'<rect x="{x + 6}" y="{yy + 6}" width="90" height="{chip_h - 12}" rx="6" '
+            f'fill="{_hex(rgb)}"/>'
+            f'<g font-family="{FONT}" dominant-baseline="central">'
+            f'<text x="{x + 51}" y="{yy + chip_h / 2}" font-size="22" text-anchor="middle" '
+            f'fill="{_text_fill(rgb)}">{escape(c["ref"])}</text>'
+            f'<text x="{x + chip_w - 12}" y="{yy + chip_h / 2}" font-size="24" '
+            f'text-anchor="end" fill="{INK}">{c["count"]}</text></g>')
+    return _svg(width, height, "".join(parts))

@@ -19,7 +19,8 @@ core/                  pure Python, no browser imports
   palette.py           load brand CSVs, RGB->Lab, nearest-color match
   pattern.py           Pattern: grid of palette indices, per-color counts, legend
   api.py               entry points the web page calls through Pyodide
-  render.py            Pattern -> PNG chart tiles (bead code in each cell, gridlines)
+  pipeline.py          image -> Pattern, shared by the web page and the CLI
+  render.py            Pattern -> SVG chart tiles / sheet (bead code in each cell), PNG preview
 data/palettes/         vendored copy of beadcolors/raw/*.csv
 tests/
 web/                   GitHub Pages root
@@ -94,6 +95,9 @@ image bytes
 - Optional "colors I own" subset: filter the palette before matching.
 
 ### render / output
+- Charts are SVG, not PNG: text and lines stay sharp on high-DPI screens and in a printed
+  PDF (a raster is resampled by the browser, which is what made PNG charts look soft).
+  "Download PNG" rasterizes the sheet SVG in the browser at up to 3x.
 - Chart: colored cells with the bead code printed in each (works in grayscale and for
   color-blind users, so no separate symbol set), gridlines every 5, numbered rows/columns,
   split into evenly sized tiles of at most 32x40 cells. Legend is an HTML table (swatch, code,
@@ -101,6 +105,15 @@ image bytes
   natural sort, not string sort).
 - Download PNG is the full chart; PDF via browser print (print CSS hides controls, one tile
   per page).
+
+## Speed and robustness (summary)
+- Detection is 1D: edge profiles from <=256 sampled lines per axis, then an FFT. Cost does not
+  grow with image area. Border trimming samples <=512 pixels per line.
+- Everything after sampling works on the cell array (tens to thousands of cells), never on
+  pixels; matching only compares unique colors. The decoded image and grid are cached, so
+  the brand, colors, board size and order controls re-run only the cheap part.
+- No pixel structure (edge density < 0.1% or no spectral line): <=150 px images are used
+  1:1; bigger ones are treated as a photo and averaged down to 50 cells on the long side.
 
 ## Frontend
 

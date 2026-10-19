@@ -9,18 +9,22 @@ worker.onmessage = (e) => {
   pending.delete(id);
   if (p) error ? p.reject(new Error(error)) : p.resolve(result);
 };
-function call(msg, transfer) {
+function call(msg) {
   return new Promise((resolve, reject) => {
     const id = nextId++;
     pending.set(id, { resolve, reject });
-    worker.postMessage({ id, ...msg }, transfer || []);
+    worker.postMessage({ id, ...msg });
   });
 }
 
 let imageBytes = null;
+let originalUrl = null;
 let urls = [];
 let timer = null;
 let runToken = 0;
+let custom = null;        // null = use the detected grid, else [columns, rows]
+let detected = null;      // [columns, rows] found by Python
+let lastSheet = "";
 
 function setStatus(text, isError) {
   const s = $("status");
@@ -29,8 +33,8 @@ function setStatus(text, isError) {
   s.hidden = !text;
 }
 
-const png = (bytes) => {
-  const url = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+const blobUrl = (data, type) => {
+  const url = URL.createObjectURL(new Blob([data], { type }));
   urls.push(url);
   return url;
 };
@@ -39,15 +43,13 @@ async function refresh() {
   if (!imageBytes) return;
   const token = ++runToken;
   setStatus("Working…");
-  const cx = parseInt($("cx").value, 10) || 0;
-  const cy = parseInt($("cy").value, 10) || 0;
   try {
     const r = await call({
       type: "run",
       data: imageBytes.slice(),
       brand: $("brand").value,
-      cx: cx > 0 && cy > 0 ? cx : 0,
-      cy: cx > 0 && cy > 0 ? cy : 0,
+      cx: custom ? custom[0] : 0,
+      cy: custom ? custom[1] : 0,
       tol: parseFloat($("tol").value),
       board: parseInt($("board").value, 10) || 0,
       order: $("order").value,
@@ -61,23 +63,70 @@ async function refresh() {
   }
 }
 
+// ---- pixel grid panel -------------------------------------------------------------------
+
+const ratio = () => (detected ? detected[1] / detected[0] : 1);   // rows per column
+
+function setCustomInputs(cols, rows) {
+  $("cx").value = cols;
+  $("cy").value = rows;
+  $("use-custom").disabled = !(cols > 0 && rows > 0);
+}
+
+$("cx").addEventListener("input", () => {
+  const c = parseInt($("cx").value, 10);
+  setCustomInputs(c > 0 ? c : "", c > 0 ? Math.max(1, Math.round(c * ratio())) : "");
+});
+$("cy").addEventListener("input", () => {
+  const r = parseInt($("cy").value, 10);
+  setCustomInputs(r > 0 ? Math.max(1, Math.round(r / ratio())) : "", r > 0 ? r : "");
+});
+$("use-custom").addEventListener("click", () => {
+  const c = parseInt($("cx").value, 10), r = parseInt($("cy").value, 10);
+  if (c > 0 && r > 0) {
+    custom = [Math.min(c, 200), Math.min(r, 200)];
+    refresh();
+  }
+});
+$("use-detected").addEventListener("click", () => {
+  custom = null;
+  if (detected) setCustomInputs(detected[0], detected[1]);
+  refresh();
+});
+
+function describeGrid(r) {
+  const g = r.grid;
+  if (g.manual) return `Using your custom grid, ${g.nx} × ${g.ny}.`;
+  if (r.kind === "photo") {
+    return `No pixel grid found, so this is treated as a regular picture and shrunk to ${g.detected[0]} × ${g.detected[1]}. Set another size under Custom.`;
+  }
+  if (r.kind === "pixels") return `Already one pixel per bead (${g.detected[0]} × ${g.detected[1]}). If it is scaled up, enter the size under Custom.`;
+  const trimmed = g.nx !== g.detected[0] || g.ny !== g.detected[1]
+    ? ` The empty background is cropped, leaving ${g.nx} × ${g.ny}.` : "";
+  return `Using the detected grid: each pixel is about ${g.period.toFixed(2)} px wide in the image.${trimmed}`;
+}
+
+// ---- results ----------------------------------------------------------------------------
+
 function show(r) {
   urls.forEach(URL.revokeObjectURL);
   urls = [];
-  const { grid, image } = r;
-  $("cx").placeholder = grid.detected[0];
-  $("cy").placeholder = grid.detected[1];
-  const trimmed = !grid.manual && (grid.nx !== grid.detected[0] || grid.ny !== grid.detected[1])
-    ? ` After removing the background the pattern is ${grid.nx} × ${grid.ny}.` : "";
-  $("gridinfo").textContent = grid.manual
-    ? `Using ${grid.nx} × ${grid.ny} (set by you). Detected ${grid.detected[0]} × ${grid.detected[1]}.`
-    : grid.period > 1
-      ? `Detected ${grid.detected[0]} × ${grid.detected[1]} pixels (each about ${grid.period.toFixed(2)} px wide in the image).${trimmed}`
-      : `The image looks like it is already 1 pixel per bead: ${grid.nx} × ${grid.ny}. If it is scaled up, enter the number of columns and rows.`;
+  const g = r.grid;
+  const firstTime = !detected || detected[0] !== g.detected[0] || detected[1] !== g.detected[1];
+  detected = g.detected;
+  if (firstTime && !custom) setCustomInputs(detected[0], detected[1]);
 
-  $("preview").src = png(r.preview);
-  const total = r.total;
-  $("summary").textContent = `${grid.nx} × ${grid.ny}, ${r.legend.length} colors, ${total} beads.`;
+  $("d-original").textContent = `${r.original[0]} × ${r.original[1]} px`;
+  $("d-current").textContent = `${g.nx} × ${g.ny} cells`;
+  $("d-detected").textContent = `${detected[0]} × ${detected[1]}`;
+  $("use-detected").disabled = false;
+  $("cx").disabled = $("cy").disabled = false;
+  $("gridinfo").textContent = describeGrid(r);
+
+  $("orig").src = originalUrl;
+  $("preview").src = blobUrl(r.preview, "image/png");
+  $("cap-preview").textContent = `Pattern, ${g.nx} × ${g.ny}`;
+  $("summary").textContent = `${g.nx} × ${g.ny}, ${r.legend.length} colors, ${r.total} beads.`;
 
   const tiles = $("tiles");
   tiles.replaceChildren();
@@ -85,7 +134,6 @@ function show(r) {
     const [x0, y0, x1, y1] = t.box;
     const fig = document.createElement("figure");
     fig.className = "tile";
-    fig.style.margin = "0 0 1.5rem";
     const cap = document.createElement("figcaption");
     cap.textContent = t.board
       ? `Board ${i + 1} of ${r.tiles.length} (board row ${t.board[0]}, column ${t.board[1]}); pattern columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`
@@ -95,7 +143,7 @@ function show(r) {
     const box = document.createElement("div");
     box.className = "scroll";
     const img = document.createElement("img");
-    img.src = png(t.png);
+    img.src = blobUrl(t.svg, "image/svg+xml");
     img.alt = `Chart part ${i + 1}`;
     box.append(img);
     fig.append(cap, box);
@@ -104,15 +152,15 @@ function show(r) {
 
   const body = $("legend").tBodies[0];
   body.replaceChildren();
-  let family = null;
+  let group = null;
   for (const c of r.legend) {
-    if ($("order").value === "group" && c.group !== family) {
-      family = c.group;
+    if ($("order").value === "group" && c.group !== group) {
+      group = c.group;
       const hr = body.insertRow();
-      hr.className = "family";
+      hr.className = "group";
       const th = document.createElement("th");
       th.colSpan = 3;
-      th.textContent = family;
+      th.textContent = group;
       hr.append(th);
     }
     const tr = body.insertRow();
@@ -125,14 +173,47 @@ function show(r) {
     n.className = "num";
     n.textContent = c.count;
   }
-  $("total").textContent = total;
+  $("total").textContent = r.total;
 
-  const dl = $("download");
-  dl.href = png(r.full);
-  dl.classList.remove("disabled");
-  $("print").disabled = false;
+  lastSheet = r.sheet;
+  $("print").disabled = $("dl-png").disabled = $("dl-svg").disabled = false;
   $("output").hidden = false;
 }
+
+// ---- downloads --------------------------------------------------------------------------
+
+function save(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+$("dl-svg").addEventListener("click", () =>
+  save(new Blob([lastSheet], { type: "image/svg+xml" }), "bead-pattern.svg"));
+
+$("dl-png").addEventListener("click", () => {
+  const m = lastSheet.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  const w = parseFloat(m[1]), h = parseFloat(m[2]);
+  const scale = Math.min(3, 12000 / Math.max(w, h));   // sharp, but within canvas limits
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((b) => save(b, "bead-pattern.png"), "image/png");
+  };
+  img.src = blobUrl(lastSheet, "image/svg+xml");
+});
+
+$("print").addEventListener("click", () => window.print());
+
+// ---- wiring -----------------------------------------------------------------------------
 
 function schedule() {
   clearTimeout(timer);
@@ -143,24 +224,25 @@ $("file").addEventListener("change", async (e) => {
   const f = e.target.files[0];
   if (!f) return;
   imageBytes = new Uint8Array(await f.arrayBuffer());
-  $("cx").value = $("cy").value = "";
+  if (originalUrl) URL.revokeObjectURL(originalUrl);
+  originalUrl = URL.createObjectURL(f);
+  custom = null;
+  detected = null;
+  setCustomInputs("", "");
   refresh();
 });
 $("brand").addEventListener("change", schedule);
-$("cx").addEventListener("input", schedule);
-$("cy").addEventListener("input", schedule);
 $("board").addEventListener("input", schedule);
 $("order").addEventListener("change", schedule);
-$("clean").addEventListener("change", schedule);
+$("clean").addEventListener("change", () => {
+  custom = null;   // the trimmed art changes, so a custom size no longer means the same thing
+  detected = null;
+  schedule();
+});
 $("tol").addEventListener("input", () => {
   $("tolout").textContent = $("tol").value;
   schedule();
 });
-$("auto").addEventListener("click", () => {
-  $("cx").value = $("cy").value = "";
-  refresh();
-});
-$("print").addEventListener("click", () => window.print());
 
 (async () => {
   try {

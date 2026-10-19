@@ -24,12 +24,20 @@
 
     <fieldset>
       <legend>Pixel grid</legend>
-      <p id="gridinfo" class="note">Choose an image to detect its pixel size.</p>
-      <div class="row">
-        <label>Columns <input type="number" id="cx" min="1" max="500" inputmode="numeric"></label>
-        <label>Rows <input type="number" id="cy" min="1" max="500" inputmode="numeric"></label>
+      <dl id="dims">
+        <dt>Original image</dt><dd id="d-original">–</dd>
+        <dt>Current pattern</dt><dd id="d-current">–</dd>
+        <dt>Detected</dt>
+        <dd><span id="d-detected">–</span> <button type="button" id="use-detected" disabled>Use detected</button></dd>
+      </dl>
+      <div class="custom">
+        <span class="label">Custom</span>
+        <input type="number" id="cx" min="1" max="200" inputmode="numeric" aria-label="Custom columns" disabled>
+        <span aria-hidden="true">×</span>
+        <input type="number" id="cy" min="1" max="200" inputmode="numeric" aria-label="Custom rows" disabled>
+        <button type="button" id="use-custom" disabled>Use custom</button>
       </div>
-      <button type="button" id="auto">Use detected grid</button>
+      <p id="gridinfo" class="note">Choose an image to detect its pixel size. Rows and columns keep the image's proportions.</p>
     </fieldset>
 
     <label>Pegboard size (cells per side)
@@ -57,15 +65,24 @@
 
     <div class="row">
       <button type="button" id="print" disabled>Print / save as PDF</button>
-      <a id="download" class="button disabled" download="bead-pattern.png">Download PNG</a>
+      <button type="button" id="dl-png" disabled>Download PNG</button>
+      <button type="button" id="dl-svg" disabled>Download SVG</button>
     </div>
   </form>
 
   <section id="result" aria-live="polite">
     <p id="status">Loading Python (first visit downloads about 10 MB)…</p>
     <div id="output" hidden>
-      <h2>Preview</h2>
-      <img id="preview" alt="Pattern preview">
+      <div class="pair">
+        <figure>
+          <figcaption>Original</figcaption>
+          <img id="orig" alt="Original image">
+        </figure>
+        <figure>
+          <figcaption id="cap-preview">Pattern</figcaption>
+          <img id="preview" alt="Pattern preview">
+        </figure>
+      </div>
       <p id="summary" class="note"></p>
 
       <h2>Chart</h2>

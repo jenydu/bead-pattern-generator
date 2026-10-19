@@ -1,4 +1,5 @@
 import io
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
@@ -10,7 +11,7 @@ from core.clean import (clear_background, crop_to_content, sample_cells, trim_bo
 from core.grid_detect import detect_grid
 from core.palette import load_palette
 from core.pattern import build_pattern
-from core.render import render_chart, tile_boxes
+from core.render import render_chart, render_sheet, tile_boxes
 
 SAMPLE = Path("/Users/u1082736/Downloads/cataloe-128.png")
 
@@ -121,10 +122,24 @@ def test_tiles_cover_pattern_evenly():
     assert (covered == 1).all()
 
 
-def test_render_chart_size():
-    a = np.full((4, 6, 4), 255, np.uint8)
-    img = render_chart(build_pattern(a, load_palette("mard_291")), cell=20)
-    assert img.size == (16 + 6 * 20 + 2, 16 + 4 * 20 + 2)
+def test_render_chart_is_vector_svg():
+    pal = load_palette("mard_291")
+    a = np.zeros((2, 3, 4), np.uint8)
+    a[..., 3] = 255
+    a[0, 0, :3] = pal.rgb[pal.refs.index("A1")]
+    p = build_pattern(a, pal)
+    svg = render_chart(p, cell=20)
+    ET.fromstring(svg)  # well-formed XML, or the browser shows a broken image
+    assert svg.startswith("<svg") and svg.endswith("</svg>")
+    assert ">A1</text>" in svg and "font-weight" not in svg  # real text, not bold
+    assert 'width="78"' in svg  # margin 16 + 3 cells * 20 + 2
+
+
+def test_sheet_lists_counts_in_legend_order():
+    p = _three_color_pattern()
+    svg = render_sheet(p, p.legend("group"), "T & <x>", board=None, show_groups=True)
+    ET.fromstring(svg)
+    assert "T &amp; &lt;x&gt;" in svg and "Series A" in svg
 
 
 @pytest.mark.skipif(not SAMPLE.exists(), reason="sample image not available")
@@ -140,7 +155,7 @@ def test_api_run():
     Image.fromarray(upscale(art, 5)).save(buf, "PNG")
     out = api.run(buf.getvalue(), "mard_291")
     assert (out["grid"]["nx"], out["grid"]["ny"]) == (24, 24)
-    assert out["legend"] and out["tiles"] and out["preview"][:4] == b"\x89PNG"
+    assert out["legend"] and out["tiles"] and out["preview"][:4] == b"\x89PNG" and out["sheet"].startswith("<svg")
     out = api.run(buf.getvalue(), "perler", cells_x=12, cells_y=12)
     assert out["grid"]["manual"] and out["grid"]["nx"] == 12
 
@@ -239,3 +254,26 @@ def test_crop_to_content():
     a = np.zeros((6, 6, 4), np.uint8)
     a[2:4, 1:3] = 255
     assert crop_to_content(a).shape[:2] == (2, 2)
+
+
+def test_photo_without_pixel_grid_is_shrunk_not_exploded():
+    from core import api
+    rng = np.random.default_rng(0)
+    yy, xx = np.mgrid[:400, :600]
+    photo = np.stack([127 + 120 * np.sin(xx / 70), 127 + 120 * np.sin(yy / 50),
+                      127 + 120 * np.sin((xx + yy) / 90)], -1)
+    photo = np.clip(photo + rng.normal(0, 3, photo.shape), 0, 255).astype(np.uint8)
+    buf = io.BytesIO()
+    Image.fromarray(photo).save(buf, "PNG")
+    out = api.run(buf.getvalue())
+    assert out["kind"] == "photo"
+    assert out["grid"]["nx"] == 50 and out["grid"]["ny"] == 33
+    assert api.run(buf.getvalue(), cells_x=20, cells_y=13)["grid"]["nx"] == 20
+
+
+def test_tiny_image_is_taken_pixel_for_pixel():
+    from core import api
+    buf = io.BytesIO()
+    Image.fromarray(make_art(24, seed=9)).save(buf, "PNG")
+    out = api.run(buf.getvalue())
+    assert out["kind"] == "pixels" and out["grid"]["nx"] == 24

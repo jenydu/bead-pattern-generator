@@ -48,7 +48,18 @@ button:disabled, .button.disabled { color: #888; cursor: default; pointer-events
 
 #result { margin-top: 1.5rem; }
 #status.error { color: #b00020; }
-#preview { image-rendering: pixelated; max-width: 100%; height: auto; border: 1px solid #ccc; }
+.pair { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
+.pair figure { margin: 0; flex: 1 1 14rem; max-width: 24rem; }
+.pair figcaption { font-size: .9rem; color: #555; margin-bottom: .25rem; }
+.pair img { display: block; width: 100%; height: auto; border: 1px solid #ccc; image-rendering: pixelated; background: #fff; }
+dl#dims { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0 0 .75rem; }
+dl#dims dt { color: #555; }
+dl#dims dd { margin: 0; }
+dl#dims button { display: inline-block; margin: 0 0 0 .5rem; min-height: 36px; padding: .15rem .6rem; }
+.custom { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.custom .label { color: #555; min-width: 7.5rem; }
+.custom input { width: 5rem; margin: 0; }
+.custom button { margin: 0; min-height: 36px; flex: 0 0 auto; }
 
 .tile { margin: 0 0 1.5rem; }
 .tile figcaption { font-size: .9rem; color: #555; margin-bottom: .25rem; }
@@ -60,7 +71,7 @@ th, td { border-bottom: 1px solid #ccc; padding: .3rem .5rem; text-align: left; 
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .swatch { display: inline-block; width: 2.5rem; height: 1.2rem; border: 1px solid #666; vertical-align: middle; }
 tfoot td { font-weight: 600; }
-tr.family th { background: #f2f2f2; font-size: .9rem; border-bottom: 1px solid #999; }
+tr.group th { background: #f2f2f2; font-size: .9rem; border-bottom: 1px solid #999; }
 
 footer { margin-top: 2rem; font-size: .85rem; color: #555; }
 
@@ -71,11 +82,11 @@ footer { margin-top: 2rem; font-size: .85rem; color: #555; }
 }
 
 @media print {
-  header, #controls, footer, #preview, #status, h2:first-of-type { display: none; }
+  header, #controls, footer, .pair, #summary, #status { display: none; }
   body { padding: 0; max-width: none; }
   main { display: block; }
   .scroll { overflow: visible; border: 0; }
-  .scroll img { max-width: 100%; max-height: 24cm; width: auto; }
+  .scroll img { max-width: 100%; max-height: 24cm; width: auto; height: auto; }
   .tile { break-after: page; }
   table { break-inside: avoid; }
 }

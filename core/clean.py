@@ -4,11 +4,14 @@ import numpy as np
 from .palette import rgb_to_lab
 
 
-def sample_cells(arr, grid, window=0.5):
-    """Median color of the central `window` fraction of every cell -> (ny, nx, 4) uint8.
+def sample_cells(arr, grid, window=0.5, reduce="median"):
+    """One color per cell -> (ny, nx, 4) uint8.
 
-    The cell borders are where blur and resampling artifacts live, so they are ignored.
+    Pixel art: the median of the central `window` fraction of the cell. The borders are where
+    blur and resampling artifacts live, so they are ignored. For a photo (window=1,
+    reduce="mean") the whole cell is averaged, which is what shrinking a picture means.
     A 1:1 grid (period 1) simply returns the image."""
+    stat = np.median if reduce == "median" else np.mean
     arr = np.asarray(arr)
     if arr.ndim == 2:
         arr = np.stack([arr] * 3, axis=-1)
@@ -21,7 +24,7 @@ def sample_cells(arr, grid, window=0.5):
         y0, y1 = _span(ye[j], ye[j + 1], window, h)
         for i in range(grid.nx):
             x0, x1 = _span(xe[i], xe[i + 1], window, w)
-            out[j, i] = np.median(arr[y0:y1, x0:x1].reshape(-1, 4), axis=0)
+            out[j, i] = stat(arr[y0:y1, x0:x1].reshape(-1, 4), axis=0)
     return out
 
 
@@ -89,8 +92,8 @@ def _plain_lines(rgb, axis, tol=75, frac=0.98, min_light=150):
 
 
 def _over_white(rgba):
-    if rgba.shape[-1] == 3:
-        return rgba
+    if rgba.shape[-1] == 3 or rgba[..., 3].min() == 255:  # opaque: no blending needed
+        return rgba[..., :3]
     a = rgba[..., 3:4].astype(np.float32) / 255
     return (rgba[..., :3] * a + 255 * (1 - a)).astype(np.uint8)
 

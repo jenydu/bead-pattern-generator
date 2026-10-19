@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 
 PAD = 4  # zero-padding factor for the coarse spectrum
+MIN_EDGE_DENSITY = 0.001  # below this share of edge pixels there is no pixel structure
 MAX_LINES = 256  # rows (or columns) sampled for the edge profiles; more adds nothing
 
 
@@ -42,14 +43,15 @@ def _highpass(prof):
 
 
 def _edge_profile(arr, axis):
-    """(soft, hard) edge profiles between neighbouring columns (axis=1) or rows (axis=0).
+    """(soft, hard, density) edge profiles between neighbouring columns (axis=1) or rows (axis=0).
 
     Both have length n-1 and bin i sits at border coordinate i+1. Small gradients (JPEG
     blocks, dithering) are dropped and the rest compressed so a few high-contrast edges
     don't dominate. `hard` is the first difference only (peaks at borders of sharp pixels);
     `soft` adds the second difference so bilinear ramps, whose only features are kinks at
     cell centers, still show their period. `soft` is high-passed so smooth large features
-    don't look like a low-frequency grid."""
+    don't look like a low-frequency grid. `density` is the share of neighbouring-pixel pairs that
+    form a real edge; a smooth picture has almost none and cannot have a pixel grid."""
     other = 1 - axis
     n_lines = arr.shape[other]
     if n_lines > MAX_LINES:  # the profile only needs a spread of lines, not every pixel
@@ -61,7 +63,7 @@ def _edge_profile(arr, axis):
     g2 = np.sqrt(np.maximum(d2 - NOISE, 0)).sum(axis=other).astype(np.float64)
     g2c = np.zeros_like(hard)
     g2c[1:-1] = (g2[:-1] + g2[1:]) / 2  # resample to border coordinates i+1
-    return _highpass(hard + g2c), hard
+    return _highpass(hard + g2c), hard, float((d1 > NOISE).mean())
 
 
 def _spectrum(prof, nfft):
@@ -155,8 +157,10 @@ def detect_grid(arr, square=None, min_cells=6, min_prominence=8.0):
     h, w = arr.shape[:2]
     sizes = {"x": w, "y": h}
     soft, hard = {}, {}
-    soft["x"], hard["x"] = _edge_profile(arr, 1)
-    soft["y"], hard["y"] = _edge_profile(arr, 0)
+    soft["x"], hard["x"], dens_x = _edge_profile(arr, 1)
+    soft["y"], hard["y"], dens_y = _edge_profile(arr, 0)
+    if max(dens_x, dens_y) < MIN_EDGE_DENSITY:
+        return Grid(1.0, 1.0, 0.0, 0.0, w, h, 0.0, 0.0, 0.0)
 
     def pick(axes):
         n = min(sizes[a] for a in axes)
@@ -182,8 +186,7 @@ def detect_grid(arr, square=None, min_cells=6, min_prominence=8.0):
     if square is not True:
         px, cx = pick(["x"])
         py, cy = pick(["y"])
-        stretched = (px and py and abs(px - py) > 0.04 * max(px, py)
-                     and not _harmonic(px, py))
+        stretched = (px and py and abs(px - py) > 0.04 * max(px, py) and not _harmonic(px, py))
         if square is False or stretched:
             periods, conf, use_square = {"x": px, "y": py}, min(cx, cy), False
 
