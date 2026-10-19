@@ -1,0 +1,26 @@
+name: Deploy to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy pillow pytest
+      - run: python -m pytest -q
+      - run: python build.py --no-sync
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - uses: actions/deploy-pages@v4
