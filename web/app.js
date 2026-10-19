@@ -29,7 +29,6 @@ let lastResult = null;
 let swaps = {};           // {"rrggbb": bead ref} chosen in the color swap panel
 let swapOpen = false;
 let openRow = null;       // hex of the swap row whose picker is open
-let collapsed = false;    // phones: settings fold away after the first result
 let brandInfo = {};       // key -> {symbols: bool}
 
 function setStatus(text, isError) {
@@ -52,7 +51,6 @@ async function refresh() {
     return;
   }
   const token = ++runToken;
-  if (!$("output").hidden) $("output").classList.add("busy");   // keep the old chart, dimmed
   setStatus("Working…");
   try {
     const r = await call({
@@ -72,36 +70,13 @@ async function refresh() {
     show(r);
     setStatus("");
   } catch (err) {
-    if (token === runToken) {
-      $("output").hidden = true;
-      setStatus("Could not process this image: " + err.message, true);
-    }
-  } finally {
-    if (token === runToken) $("output").classList.remove("busy");
+    if (token === runToken) setStatus("Could not process this image: " + err.message, true);
   }
 }
 
 // ---- pixel grid panel -------------------------------------------------------------------
 
 const ratio = () => (detected ? detected[1] / detected[0] : 1);   // rows per column
-
-// Empty the page while a different image is being processed.
-function clearResult() {
-  $("output").hidden = true;
-  $("output").classList.remove("busy");
-  $("tiles").replaceChildren();
-  viewers = []; figures = []; captions = []; active = 0;
-  for (const id of ["orig", "preview"]) $(id).removeAttribute("src");
-  $("legend").tBodies[0].replaceChildren();
-  $("swap-table").tBodies[0].replaceChildren();
-  $("print").disabled = $("dl-png").disabled = $("dl-svg").disabled = true;
-  urls.forEach(URL.revokeObjectURL);
-  urls = [];
-  lastResult = null;
-  lastSheet = "";
-  $("gridbox").hidden = true;
-  setCustomInputs("", "");
-}
 
 function setCustomInputs(cols, rows) {
   $("cx").value = cols;
@@ -142,68 +117,6 @@ function describeGrid(r) {
   return `Using the detected grid: each pixel is about ${g.period.toFixed(2)} px wide in the image.${trimmed}`;
 }
 
-// ---- chart: one viewer per part, shown one at a time or all ----------------------------
-
-let viewers = [];
-let figures = [];
-let captions = [];
-let active = 0;
-let viewAll = false;
-
-function buildTiles(r) {
-  const tiles = $("tiles");
-  tiles.replaceChildren();
-  viewers = [];
-  figures = [];
-  captions = r.tiles.map((t, i) => {
-    const [x0, y0, x1, y1] = t.box;
-    const range = `columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`;
-    return t.board
-      ? `Board ${i + 1} of ${r.tiles.length} (board row ${t.board[0]}, column ${t.board[1]}) · ${range}`
-      : r.tiles.length > 1 ? `Part ${i + 1} of ${r.tiles.length} · ${range}` : "";
-  });
-  r.tiles.forEach((t, i) => {
-    const fig = document.createElement("figure");
-    fig.className = "tile";
-    const cap = document.createElement("figcaption");
-    cap.textContent = captions[i];
-    const v = new Viewer(blobUrl(t.svg, "image/svg+xml"), { onKey: (d) => go(active + d) });
-    fig.append(cap, v.el);
-    tiles.append(fig);
-    viewers.push(v);
-    figures.push(fig);
-  });
-  active = Math.min(active, viewers.length - 1);
-  updateView();
-}
-
-function go(i) {
-  if (viewAll || i < 0 || i >= viewers.length) return;
-  active = i;
-  updateView();
-  viewers[i].el.focus({ preventScroll: true });
-}
-
-function updateView() {
-  const n = viewers.length;
-  const slide = n > 1 && !viewAll;
-  $("pager").hidden = n < 2;
-  $("tiles").classList.toggle("slide", slide);
-  $("view-one").setAttribute("aria-pressed", String(!viewAll));
-  $("view-all").setAttribute("aria-pressed", String(viewAll));
-  $("nav").hidden = viewAll;
-  $("pos").textContent = captions[active]?.split(" (")[0].split(" · ")[0] ?? "";
-  $("prev").disabled = active === 0;
-  $("next").disabled = active === n - 1;
-  figures.forEach((f, i) => f.classList.toggle("active", i === active));
-  requestAnimationFrame(() => viewers.forEach((v) => v.layout()));
-}
-
-$("prev").addEventListener("click", () => go(active - 1));
-$("next").addEventListener("click", () => go(active + 1));
-$("view-one").addEventListener("click", () => { viewAll = false; updateView(); });
-$("view-all").addEventListener("click", () => { viewAll = true; updateView(); });
-
 // ---- results ----------------------------------------------------------------------------
 
 function show(r) {
@@ -227,7 +140,27 @@ function show(r) {
   $("cap-preview").textContent = `Pattern, ${g.nx} × ${g.ny}`;
   $("summary").textContent = `${g.nx} × ${g.ny}, ${r.legend.length} colors, ${r.total} beads.`;
 
-  buildTiles(r);
+  const tiles = $("tiles");
+  tiles.replaceChildren();
+  r.tiles.forEach((t, i) => {
+    const [x0, y0, x1, y1] = t.box;
+    const fig = document.createElement("figure");
+    fig.className = "tile";
+    const cap = document.createElement("figcaption");
+    cap.textContent = t.board
+      ? `Board ${i + 1} of ${r.tiles.length} (board row ${t.board[0]}, column ${t.board[1]}); pattern columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`
+      : r.tiles.length > 1
+        ? `Part ${i + 1} of ${r.tiles.length}: columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`
+        : "";
+    const box = document.createElement("div");
+    box.className = "scroll";
+    const img = document.createElement("img");
+    img.src = blobUrl(t.svg, "image/svg+xml");
+    img.alt = `Chart part ${i + 1}`;
+    box.append(img);
+    fig.append(cap, box);
+    tiles.append(fig);
+  });
 
   const body = $("legend").tBodies[0];
   body.replaceChildren();
@@ -259,11 +192,6 @@ function show(r) {
   $("total").textContent = r.total;
 
   lastResult = r;
-  if (!collapsed && window.matchMedia("(max-width: 55.99rem)").matches) {
-    $("settings").open = false;
-    collapsed = true;
-    $("result").scrollIntoView();
-  }
   renderSwap();
   lastSheet = r.sheet;
   $("print").disabled = $("dl-png").disabled = $("dl-svg").disabled = false;
@@ -408,8 +336,8 @@ $("file").addEventListener("change", async (e) => {
   detected = null;
   swaps = {};
   openRow = null;
-  clearResult();
-  collapsed = false;
+  $("gridbox").hidden = true;
+  setCustomInputs("", "");
   refresh();
 });
 function applyBrandDefaults() {

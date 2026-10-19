@@ -50,3 +50,41 @@ def test_match_exact_and_order():
 def test_subset():
     p = load_palette("mard_291").subset(["A1", "B1"])
     assert len(p) == 2
+
+
+def test_dmc_palette_from_threadcolors_workbook():
+    from pathlib import Path
+    from core.palette import natural_key
+    p = load_palette("dmc")
+    assert len(p) == len(set(p.refs)) == 454
+    order = [p.refs[i] for i in p.order()]
+    assert order[:4] == ["B5200", "Ecru", "White", "150"] and order[-1] == "3866"
+    i = p.refs.index("310")
+    assert p.names[i] == "Black" and tuple(p.rgb[i]) == (0, 0, 0)
+    assert p.prefers_symbols and not load_palette("mard_291").prefers_symbols
+    assert p.grouping == "hue"      # no letter series, so grouped by color family
+    assert sorted(["310", "White", "3", "B5200"], key=natural_key) == ["B5200", "White", "3", "310"]
+
+    openpyxl = pytest.importorskip("openpyxl")
+    ws = openpyxl.load_workbook(Path(__file__).parent.parent / "data/dmc_threadcolors.xlsx",
+                                read_only=True)["DMC"]
+    rows = [r for r in list(ws.iter_rows(values_only=True))[1:] if r[0] is not None]
+    assert {str(r[0]) for r in rows} == set(p.refs)       # the CSV is the workbook, nothing else
+    for r in rows:
+        j = p.refs.index(str(r[0]))
+        assert tuple(p.rgb[j]) == tuple(r[2:5]) and p.names[j] == r[1]
+
+
+def test_dmc_pattern_end_to_end():
+    import io
+    import numpy as np
+    from PIL import Image
+    from core import api
+    art = np.zeros((20, 20, 3), np.uint8)
+    art[:10] = (200, 30, 40)
+    art[10:] = (30, 60, 200)
+    buf = io.BytesIO()
+    Image.fromarray(np.kron(art, np.ones((6, 6, 1), np.uint8))).save(buf, "PNG")
+    out = api.run(buf.getvalue(), brand="dmc", labels="symbol", order="group")
+    assert next(b for b in api.brands() if b["key"] == "dmc")["symbols"]
+    assert out["legend"] and all(c["symbol"] and c["ref"].isalnum() for c in out["legend"])

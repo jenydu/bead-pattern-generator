@@ -7,96 +7,81 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="top">
+<header>
   <h1>Bead pattern maker</h1>
-  <p>Turn pixel art into a bead chart. It runs in your browser; your image is not uploaded.</p>
+  <p>Upload pixel art and get a bead chart in your brand's colors. Everything runs in your browser; the image is not uploaded anywhere.</p>
 </header>
 
 <main>
   <form id="controls" onsubmit="return false">
-    <details id="settings" open>
-      <summary>Settings</summary>
+    <label>Bead brand
+      <select id="brand" disabled></select>
+    </label>
 
-      <section>
-        <h2>Start</h2>
-        <label>Bead brand
-          <select id="brand" disabled></select>
-        </label>
-        <label>Pixel art image
-          <input type="file" id="file" accept="image/*" disabled>
-          <span class="note" id="file-note">Choose the brand first. The image can be picked once Python has loaded.</span>
-        </label>
-      </section>
+    <label>Pixel art image
+      <input type="file" id="file" accept="image/*" disabled>
+      <span class="note" id="file-note">Pick the brand first; the image can be chosen once Python has loaded.</span>
+    </label>
 
-      <fieldset id="gridbox" hidden>
-        <legend>Pixel grid</legend>
-        <dl id="dims">
-          <dt>Original image</dt><dd id="d-original">–</dd>
-          <dt>Current pattern</dt><dd id="d-current">–</dd>
-          <dt>Detected</dt>
-          <dd><span id="d-detected">–</span> <button type="button" id="use-detected" class="small" disabled>Use detected</button></dd>
-        </dl>
-        <div class="custom">
-          <span class="label">Custom</span>
-          <input type="number" id="cx" min="1" max="200" inputmode="numeric" aria-label="Custom columns" disabled>
-          <span aria-hidden="true">×</span>
-          <input type="number" id="cy" min="1" max="200" inputmode="numeric" aria-label="Custom rows" disabled>
-          <button type="button" id="use-custom" class="small" disabled>Use custom</button>
-        </div>
-        <p id="gridinfo" class="note">Rows and columns keep the image's proportions.</p>
-      </fieldset>
+    <fieldset id="gridbox" hidden>
+      <legend>Pixel grid</legend>
+      <dl id="dims">
+        <dt>Original image</dt><dd id="d-original">–</dd>
+        <dt>Current pattern</dt><dd id="d-current">–</dd>
+        <dt>Detected</dt>
+        <dd><span id="d-detected">–</span> <button type="button" id="use-detected" disabled>Use detected</button></dd>
+      </dl>
+      <div class="custom">
+        <span class="label">Custom</span>
+        <input type="number" id="cx" min="1" max="200" inputmode="numeric" aria-label="Custom columns" disabled>
+        <span aria-hidden="true">×</span>
+        <input type="number" id="cy" min="1" max="200" inputmode="numeric" aria-label="Custom rows" disabled>
+        <button type="button" id="use-custom" disabled>Use custom</button>
+      </div>
+      <p id="gridinfo" class="note">Choose an image to detect its pixel size. Rows and columns keep the image's proportions.</p>
+    </fieldset>
 
-      <section>
-        <h2>Chart</h2>
-        <label>Cell labels
-          <select id="labels">
-            <option value="code">Bead codes (A1, B12…)</option>
-            <option value="symbol">Symbols (? &gt; &lt; ~ …)</option>
-          </select>
-          <span class="note">Symbols are easier to read than long codes. The bead list shows each symbol with its code.</span>
-        </label>
-        <label>Pegboard size (cells per side)
-          <input type="number" id="board" min="4" max="200" inputmode="numeric" placeholder="e.g. 29">
-          <span class="note">Optional. Splits the chart into boards of this size, numbered from 1 on each, with red lines on the full sheet.</span>
-        </label>
-        <label>Bead list order
-          <select id="order">
-            <option value="code">By code (brand order)</option>
-            <option value="group">By series (A, B, C…) or color family</option>
-            <option value="count">By count (most first)</option>
-          </select>
-        </label>
-      </section>
+    <label>Cell labels
+      <select id="labels">
+        <option value="code">Bead codes (A1, B12...)</option>
+        <option value="symbol">Symbols (? &gt; &lt; ~ ...)</option>
+      </select>
+      <span class="note" id="labels-note">Symbols are easier to read than long codes. Each symbol is listed with its code in the bead list.</span>
+    </label>
 
-      <section>
-        <h2>Cleanup</h2>
-        <label class="check"><input type="checkbox" id="clean" checked>
-          <span>Trim borders and remove the white / transparent background
-            <span class="note">Untick if white beads are part of your design's background.</span></span>
-        </label>
-        <label>Merge similar colors: <output id="tolout">6</output>
-          <input type="range" id="tol" min="0" max="20" step="1" value="6">
-          <span class="note">Raise this if blur or compression left stray shades. 0 keeps every shade.</span>
-        </label>
-      </section>
+    <label>Pegboard size (cells per side)
+      <input type="number" id="board" min="4" max="200" inputmode="numeric" placeholder="29">
+      <span class="note">Optional. Splits the chart into boards of this size, numbered from 1 on each board, with red lines on the full sheet. Leave blank for no split.</span>
+    </label>
 
-      <p class="credit">Color data: <a href="https://github.com/maxcleme/beadcolors">beadcolors</a> (MIT).</p>
-    </details>
+    <label>Bead list order
+      <select id="order">
+        <option value="code">By code (brand order)</option>
+        <option value="group">By series (A, B, C...) or color family</option>
+        <option value="count">By count (most first)</option>
+      </select>
+    </label>
+
+    <label class="check"><input type="checkbox" id="clean" checked>
+      Trim borders and remove the white / transparent background
+      <span class="note">Untick if white beads are part of your design's background.</span>
+    </label>
+
+    <label>Merge similar colors: <output id="tolout">6</output>
+      <input type="range" id="tol" min="0" max="20" step="1" value="6">
+      <span class="note">Raise this if blur or compression left stray shades. 0 keeps every shade.</span>
+    </label>
+
+    <div class="row">
+      <button type="button" id="print" disabled>Print / save as PDF</button>
+      <button type="button" id="dl-png" disabled>Download PNG</button>
+      <button type="button" id="dl-svg" disabled>Download SVG</button>
+    </div>
   </form>
 
   <section id="result" aria-live="polite">
     <p id="status">Loading Python (first visit downloads about 10 MB)…</p>
-
     <div id="output" hidden>
-      <div class="resultbar">
-        <p id="summary"></p>
-        <div class="actions">
-          <button type="button" id="print" disabled>Print / PDF</button>
-          <button type="button" id="dl-png" disabled>PNG</button>
-          <button type="button" id="dl-svg" disabled>SVG</button>
-        </div>
-      </div>
-
       <div class="pair">
         <figure>
           <figcaption>Original</figcaption>
@@ -107,6 +92,7 @@
           <img id="preview" alt="Pattern preview">
         </figure>
       </div>
+      <p id="summary" class="note"></p>
 
       <div id="swap-wrap">
         <button type="button" id="swap-toggle" aria-expanded="false" aria-controls="swap">Color swap</button>
@@ -116,24 +102,12 @@
             <thead><tr><th>Image color</th><th>Bead</th><th class="num">Cells</th></tr></thead>
             <tbody></tbody>
           </table>
-          <button type="button" id="swap-reset" class="small" disabled>Reset all swaps</button>
+          <button type="button" id="swap-reset" disabled>Reset all swaps</button>
         </div>
       </div>
 
       <h2>Chart</h2>
-      <div id="pager" class="pager" hidden>
-        <div class="seg" role="group" aria-label="Chart view">
-          <button type="button" id="view-one" aria-pressed="true">One at a time</button>
-          <button type="button" id="view-all" aria-pressed="false">All</button>
-        </div>
-        <div class="nav" id="nav">
-          <button type="button" id="prev" aria-label="Previous part">‹ Prev</button>
-          <span id="pos"></span>
-          <button type="button" id="next" aria-label="Next part">Next ›</button>
-        </div>
-      </div>
-      <p class="note hint">Zoom with + and −, Ctrl/⌘ + scroll, or pinch. Drag to move. Double-click to zoom in and out.</p>
-      <div id="tiles" class="slide"></div>
+      <div id="tiles"></div>
 
       <h2>Beads needed</h2>
       <table id="legend">
@@ -145,7 +119,10 @@
   </section>
 </main>
 
-<script src="viewer.js"></script>
+<footer>
+  Color data: <a href="https://github.com/maxcleme/beadcolors">beadcolors</a> (MIT).
+</footer>
+
 <script src="app.js"></script>
 </body>
 </html>

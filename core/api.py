@@ -14,7 +14,7 @@ _cache = {}
 
 
 def brands():
-    return [{"key": k, "label": v, "symbols": load_palette(k).long_codes}
+    return [{"key": k, "label": v, "symbols": load_palette(k).prefers_symbols}
             for k, v in BRANDS.items()]
 
 

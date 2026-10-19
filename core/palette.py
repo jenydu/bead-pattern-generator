@@ -26,12 +26,18 @@ BRANDS = {
     "artkal_r": "Artkal R (5mm)",
     "artkal_s": "Artkal S (5mm)",
     "yant": "Yant",
+    "dmc": "DMC",
 }
+
+# Brands that default to symbols on the chart even though their codes are short: a DMC
+# number is a bare number, which reads like a row/column number inside a cell.
+SYMBOL_BRANDS = {"dmc"}
 
 
 def natural_key(ref):
-    """A2 < A10 < B1; non-numeric parts compare as text."""
-    return [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", ref) if p]
+    """A2 < A10 < B1. Text sorts before numbers at the same position, so DMC's B5200, Blanc,
+    ecru come before 310, 311, ... (and text never has to be compared with a number)."""
+    return [(1, int(p)) if p.isdigit() else (0, p) for p in re.split(r"(\d+)", ref) if p]
 
 
 FAMILIES = ["Red", "Pink", "Orange", "Brown", "Yellow", "Green", "Teal", "Blue", "Purple",
@@ -140,9 +146,13 @@ class Palette:
 
     @property
     def long_codes(self):
-        """True if codes are too long to read inside a cell (Perler's 80-15179): such brands
-        default to symbols on the chart."""
+        """True if codes are too long to read inside a cell (Perler's 80-15179)."""
         return max(len(r) for r in self.refs) > 5
+
+    @property
+    def prefers_symbols(self):
+        """Whether the chart should use symbols by default for this brand."""
+        return self.long_codes or self.key in SYMBOL_BRANDS
 
     @property
     def grouping(self):

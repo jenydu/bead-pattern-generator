@@ -42,7 +42,11 @@ cli.py                 image -> pattern from the terminal
 - MARD ships as two charts: `mard_291` (all of beadcolors' mard.csv) and `mard_221` (series A-H
   and M only; the code list matches the 221-color "basic" palette in
   Jett-Wu/Perler_Beads_Generator, but RGB values stay beadcolors'). `build.py` generates both.
-- Brands: mard_291, mard_221, perler (+mini, caps), hama (+mini, maxi), nabbi, artkal a/c/m/r/s, yant.
+- DMC (cross-stitch floss): `data/dmc_threadcolors.xlsx` holds the 454 DMC floss numbers with
+  name and RGB, scraped from threadcolors.com by `tools/scrape_threadcolors.py` (one request;
+  the table is in the front page). `build.py` turns the workbook into `data/palettes/dmc.csv`.
+  DMC defaults to symbols on the chart (a bare number in a cell reads like a row number).
+- Brands: dmc, mard_291, mard_221, perler (+mini, caps), hama (+mini, maxi), nabbi, artkal a/c/m/r/s, yant.
   `diamondDotz` is diamond painting, not beads, so it is hidden from the picker.
 - Per-brand display names live in a small `BRANDS` table in `palette.py`
   (file stem -> label, bead size, shown-in-UI).
@@ -126,18 +130,7 @@ image bytes
 - No pixel structure (edge density < 0.1% or no spectral line): <=150 px images are used
   1:1; bigger ones are treated as a photo and averaged down to 50 cells on the long side.
 
-## Frontend behaviour
-- Plain files in `web/`: `index.html`, `style.css`, `app.js` (UI state), `viewer.js` (zoom/pan
-  viewer for charts), `worker.js` (Python). Wide screens: settings and results scroll
-  independently. Phones: one column; the settings fold away after the first result.
-- Choosing a new image clears the old preview, chart and lists at once; changing a setting
-  keeps the old result, dimmed, until the new one arrives.
-- Each chart part is an SVG in its own viewer: fitted to its box by default, zoom with the
-  buttons / Ctrl+scroll / pinch, drag to pan, double-click to toggle. Several parts (boards)
-  are shown one at a time with Prev / Next (arrow keys too) or all at once. Print shows every
-  part, full page width, one per page.
-
-## Frontend (original notes)
+## Frontend
 
 One page, system fonts, no framework, no bundler. Mobile-first: a single column by default
 (controls, then preview), switching to two columns (controls left, preview right) on wide screens

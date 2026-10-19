@@ -1,4 +1,5 @@
 """Sync brand palettes from beadcolors and stage core/ + data/ into web/py for Pages."""
+import csv
 import json
 import re
 import shutil
@@ -16,13 +17,39 @@ WEB_PY = ROOT / "web" / "py"
 MARD_221 = re.compile(r"[A-HM]\d+$")
 
 
+DMC_XLSX = ROOT / "data" / "dmc_threadcolors.xlsx"  # made by tools/scrape_threadcolors.py
+
+
+def build_dmc():
+    """data/palettes/dmc.csv (ref, name, r, g, b, contributor) from the scraped workbook."""
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        print("openpyxl not installed, keeping existing dmc.csv", file=sys.stderr)
+        return
+    if not DMC_XLSX.exists():
+        return
+    ws = load_workbook(DMC_XLSX, read_only=True, data_only=True)["DMC"]
+    rows = [r for r in list(ws.iter_rows(values_only=True))[1:] if r[0] is not None]
+
+    def key(row):  # B5200, Ecru, White first, then 1, 2, 3 ...
+        n = str(row[0]).strip()
+        return (1, int(n), "") if n.isdigit() else (0, 0, n)
+
+    with open(DST / "dmc.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f, lineterminator="\n")
+        for floss, name, r, g, b, *_ in sorted(rows, key=key):
+            w.writerow([str(floss).strip(), name, r, g, b, "threadcolors.com"])
+
+
 def sync_palettes():
     if not SRC.is_dir():
         print(f"{SRC} not found, keeping existing data/palettes", file=sys.stderr)
         return
     DST.mkdir(parents=True, exist_ok=True)
     for old in DST.glob("*.csv"):
-        old.unlink()
+        if old.stem != "dmc":  # generated from the workbook below, not copied from beadcolors
+            old.unlink()
     for f in sorted(SRC.glob("*.csv")):
         if f.stem == "mard":
             continue  # shipped as mard_291 / mard_221
@@ -31,6 +58,7 @@ def sync_palettes():
     (DST / "mard_291.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
     basic = [r for r in rows if MARD_221.match(r.split(",")[0])]
     (DST / "mard_221.csv").write_text("\n".join(basic) + "\n", encoding="utf-8")
+    build_dmc()
     lic = SRC.parent / "LICENSE"
     if lic.exists():
         shutil.copy2(lic, DST / "LICENSE-beadcolors")
