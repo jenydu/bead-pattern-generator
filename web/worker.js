@@ -33,8 +33,8 @@ self.onmessage = async (e) => {
     if (type === "brands") {
       result = toJs(api.brands());
     } else if (type === "run") {
-      const { data, brand, cx, cy, tol, board, order, clean } = e.data;
-      result = toJs(api.run(data, brand, cx, cy, tol, board, order, clean));
+      const { data, brand, cx, cy, tol, board, order, clean, labels, swaps } = e.data;
+      result = toJs(api.run(data, brand, cx, cy, tol, board, order, clean, labels, swaps));
     }
     self.postMessage({ id, result });
   } catch (err) {

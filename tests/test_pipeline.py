@@ -284,3 +284,63 @@ def test_unknown_or_empty_brand_falls_back_to_default():
     buf = io.BytesIO()
     Image.fromarray(upscale(make_art(16, seed=3), 6)).save(buf, "PNG")
     assert api.run(buf.getvalue(), brand="")["legend"]
+
+
+def test_symbols_are_unique_stable_and_not_alphanumeric():
+    from core.pattern import SYMBOLS
+    assert len(set(SYMBOLS)) == len(SYMBOLS)
+    assert not any(ch.isalnum() for s in SYMBOLS for ch in s)
+    p = _three_color_pattern()
+    sym = p.symbol_map()
+    assert len(set(sym.values())) == len(sym) == 3
+    # a color keeps its symbol whatever order the bead list is shown in
+    by_ref = lambda order: {c["ref"]: c["symbol"] for c in p.legend(order)}
+    assert by_ref("code") == by_ref("count") == by_ref("group")
+
+
+def test_symbol_chart_and_sheet_render():
+    p = _three_color_pattern()
+    svg = render_chart(p, labels="symbol")
+    ET.fromstring(svg)
+    assert ">A1<" not in svg and any(s in svg for s in p.symbol_map().values())
+    sheet = render_sheet(p, p.legend(), "t", labels="symbol")
+    ET.fromstring(sheet)
+
+
+def test_long_code_brands_prefer_symbols():
+    assert load_palette("perler").long_codes
+    assert not load_palette("mard_291").long_codes and not load_palette("hama").long_codes
+
+
+def test_color_swap_changes_one_source_color_only():
+    pal = load_palette("mard_291")
+    a = np.zeros((1, 3, 4), np.uint8)
+    a[..., 3] = 255
+    a[0, 0, :3] = (10, 120, 40)    # two similar greens...
+    a[0, 1, :3] = (12, 122, 42)
+    a[0, 2, :3] = (240, 240, 20)
+    base = build_pattern(a, pal)
+    assert base.cells[0, 0] == base.cells[0, 1]  # ...land on the same bead
+    rows = base.conversions()
+    assert {r["count"] for r in rows} == {1} and len(rows) == 3
+    row = next(r for r in rows if r["src"] == [12, 122, 42])
+    other = next(c["ref"] for c in row["candidates"] if c["ref"] != row["ref"])
+    swapped = build_pattern(a, pal, swaps={"0c7a2a": other, "zz": "A1", "0a7828": "NOPE"})
+    assert pal.refs[swapped.cells[0, 1]] == other
+    assert swapped.cells[0, 0] == base.cells[0, 0] and swapped.cells[0, 2] == base.cells[0, 2]
+    assert next(r for r in swapped.conversions() if r["src"] == [12, 122, 42])["swapped"]
+
+
+def test_api_swaps_labels_and_conversions():
+    import json
+    from core import api
+    buf = io.BytesIO()
+    Image.fromarray(upscale(make_art(20, seed=6), 6)).save(buf, "PNG")
+    out = api.run(buf.getvalue(), brand="perler", labels="symbol")
+    assert out["conversions"] and out["palette"] and out["legend"][0]["symbol"]
+    row = out["conversions"][0]
+    key = "%02x%02x%02x" % tuple(row["src"])
+    pick = row["candidates"][-1]["ref"]
+    out2 = api.run(buf.getvalue(), brand="perler", labels="symbol", swaps=json.dumps({key: pick}))
+    assert next(r for r in out2["conversions"] if r["src"] == row["src"])["ref"] == pick
+    assert any(b["symbols"] for b in api.brands())

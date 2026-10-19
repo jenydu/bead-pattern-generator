@@ -139,6 +139,12 @@ class Palette:
                        [self.names[i] for i in idx], self.rgb[idx], self.lab[idx])
 
     @property
+    def long_codes(self):
+        """True if codes are too long to read inside a cell (Perler's 80-15179): such brands
+        default to symbols on the chart."""
+        return max(len(r) for r in self.refs) > 5
+
+    @property
     def grouping(self):
         """"series" if the code letters split the palette into real groups (MARD A..H, M, P,
         ... or Artkal M's MA..MH), else "hue". A brand whose codes share one letter

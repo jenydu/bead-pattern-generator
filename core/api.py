@@ -1,5 +1,6 @@
 """Entry points for the web page (called from JS through Pyodide). Plain Python otherwise."""
 import hashlib
+import json
 import io
 
 import numpy as np
@@ -13,7 +14,8 @@ _cache = {}
 
 
 def brands():
-    return [{"key": k, "label": v} for k, v in BRANDS.items()]
+    return [{"key": k, "label": v, "symbols": load_palette(k).long_codes}
+            for k, v in BRANDS.items()]
 
 
 def _prepare(data, clean_edges):
@@ -28,7 +30,7 @@ def _prepare(data, clean_edges):
 
 
 def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
-        order="code", clean_edges=True):
+        order="code", clean_edges=True, labels="code", swaps="{}"):
     """Image bytes -> everything the page shows.
 
     cells_x / cells_y > 0 replaces the detected grid (relative to the trimmed art).
@@ -39,7 +41,9 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
     if brand not in BRANDS:
         brand = "mard_291"
     palette = load_palette(brand)
-    pattern = build(prep, palette, int(cells_x), int(cells_y), tolerance, bool(clean_edges))
+    pattern = build(prep, palette, int(cells_x), int(cells_y), tolerance, bool(clean_edges),
+                    json.loads(swaps or "{}"))
+    labels = "symbol" if labels == "symbol" else "code"
     ny, nx = pattern.shape
     board = int(board) if board and board > 0 else None
     legend = pattern.legend(order)
@@ -48,7 +52,7 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
     tiles = []
     for box in tile_boxes(pattern.shape, board=board):
         tile = {"box": list(box),
-                "svg": render_chart(pattern, *box, local_numbers=bool(board))}
+                "svg": render_chart(pattern, *box, local_numbers=bool(board), labels=labels)}
         if board:
             tile["board"] = [box[1] // board + 1, box[0] // board + 1]
         tiles.append(tile)
@@ -63,6 +67,9 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
         "legend": legend,
         "total": total,
         "preview": render_preview(pattern, scale=max(1, min(16, 384 // max(nx, ny)))),
-        "sheet": render_sheet(pattern, legend, title, board=board, show_groups=order == "group"),
+        "sheet": render_sheet(pattern, legend, title, board=board, show_groups=order == "group",
+                              labels=labels),
+        "conversions": pattern.conversions(),
+        "palette": [{"ref": r, "rgb": c.tolist()} for r, c in zip(palette.refs, palette.rgb)],
         "tiles": tiles,
     }

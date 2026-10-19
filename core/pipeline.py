@@ -47,8 +47,9 @@ def custom_grid(prep, cells_x, cells_y):
     return Grid(w / cx, h / cy, 0.0, 0.0, cx, cy, 0.0, 0.0, 1.0)
 
 
-def build(prep, palette, cells_x=0, cells_y=0, tolerance=6.0, clean_edges=True):
-    """Prepared image -> Pattern. cells_x/cells_y > 0 replaces the detected grid."""
+def build(prep, palette, cells_x=0, cells_y=0, tolerance=6.0, clean_edges=True, swaps=None):
+    """Prepared image -> Pattern. cells_x/cells_y > 0 replaces the detected grid; swaps is
+    {"rrggbb": ref} (see build_pattern)."""
     custom = cells_x > 0 and cells_y > 0
     grid = custom_grid(prep, cells_x, cells_y) if custom else prep.grid
     if prep.kind == "photo":
@@ -59,4 +60,4 @@ def build(prep, palette, cells_x=0, cells_y=0, tolerance=6.0, clean_edges=True):
         cells = crop_to_content(clear_background(cells))
     if tolerance > 0:
         cells = unify_colors(cells, tolerance)
-    return build_pattern(cells, palette)
+    return build_pattern(cells, palette, swaps=swaps)

@@ -106,6 +106,17 @@ image bytes
 - Download PNG is the full chart; PDF via browser print (print CSS hides controls, one tile
   per page).
 
+## Color swap, symbols, brand-first flow
+- `Pattern.conversions()` lists each distinct source color, the bead it matched, and the 12
+  nearest palette colors (dE2000). The page keeps `{rrggbb: ref}` swaps and sends them with
+  every run; `build_pattern(swaps=...)` applies them per source color, so two similar shades
+  that matched one bead can be sent to different beads. Swaps reset on a new image or brand.
+- Cell labels: bead code, or a symbol (punctuation and geometric shapes, no letters or digits).
+  Symbols are assigned in code order, so a color keeps its symbol whatever the list order.
+  Brands whose codes are longer than 5 characters (Perler) default to symbols.
+- The brand is chosen first; the image input unlocks once Python has loaded, and the pixel
+  grid box only appears after an image has been processed.
+
 ## Speed and robustness (summary)
 - Detection is 1D: edge profiles from <=256 sampled lines per axis, then an FFT. Cost does not
   grow with image area. Border trimming samples <=512 pixels per line.

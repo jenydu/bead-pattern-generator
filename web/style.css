@@ -69,7 +69,18 @@ dl#dims button { display: inline-block; margin: 0 0 0 .5rem; min-height: 36px; p
 table { border-collapse: collapse; width: 100%; max-width: 30rem; }
 th, td { border-bottom: 1px solid #ccc; padding: .3rem .5rem; text-align: left; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
-.swatch { display: inline-block; width: 2.5rem; height: 1.2rem; border: 1px solid #666; vertical-align: middle; }
+.swatch { display: inline-block; min-width: 2.5rem; height: 1.2rem; border: 1px solid #666; vertical-align: middle; text-align: center; line-height: 1.1rem; font-size: .9rem; }
+#swap-wrap { margin: 1rem 0; }
+#swap-toggle { margin-bottom: .5rem; }
+#swap-table { max-width: 36rem; }
+tr.swaprow { cursor: pointer; }
+tr.swaprow:hover, tr.swaprow:focus { background: #f2f2f2; outline: none; }
+tr.swaprow.open { background: #e8e8e8; }
+tr.swaprow.swapped td:nth-child(2) { font-weight: 600; }
+tr.picker td { background: #fafafa; border-bottom: 1px solid #999; }
+.cands { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+.cands button, tr.picker button, tr.picker select { width: auto; flex: 0 0 auto; min-height: 40px; margin: 0 .4rem .4rem 0; padding: .2rem .6rem; }
+.cands button[aria-pressed=true] { border-width: 3px; background: #ddd; }
 tfoot td { font-weight: 600; }
 tr.group th { background: #f2f2f2; font-size: .9rem; border-bottom: 1px solid #999; }
 
@@ -82,7 +93,7 @@ footer { margin-top: 2rem; font-size: .85rem; color: #555; }
 }
 
 @media print {
-  header, #controls, footer, .pair, #summary, #status { display: none; }
+  header, #controls, footer, .pair, #summary, #status, #swap-wrap { display: none; }
   body { padding: 0; max-width: none; }
   main { display: block; }
   .scroll { overflow: visible; border: 0; }
