@@ -24,7 +24,7 @@ ROW = re.compile(r'<tr><td style="background-color: #([0-9a-f]{6});"></td><td>([
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "bead-pattern-generator (one-off data import)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "pixel-art-to-beads (one-off data import)"})
     try:
         return urllib.request.urlopen(req, timeout=30).read().decode("utf-8", "replace")
     except urllib.error.URLError as e:

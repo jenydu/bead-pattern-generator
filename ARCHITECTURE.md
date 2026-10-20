@@ -1,6 +1,6 @@
 # Architecture
 
-Bead pattern generator: upload pixel art, get a printable bead chart in a chosen brand's colors.
+Pixel Art to Beads (PA2B): upload pixel art, get a printable bead chart in a chosen brand's colors.
 Everything runs client-side. Hosted as static files on GitHub Pages. No server.
 
 ## Approach

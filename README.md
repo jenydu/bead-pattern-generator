@@ -1,8 +1,8 @@
-# Bead pattern generator
+# Pixel Art to Beads (PA2B)
 
 A minimalistic bead and cross-stitch pattern generator specialized for pixel art. Supports a variety of brands, including MARD, Perler, DMC, and more.
 
-**[Open the generator](https://jenydu.github.io/bead-pattern-generator/)**: it runs entirely in your browser, and your image is never uploaded.
+**[Open the generator](https://jenydu.github.io/pixel-art-to-beads/)**: it runs entirely in your browser, and your image is never uploaded.
 
 ## What makes it different
 
