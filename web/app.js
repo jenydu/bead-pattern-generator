@@ -301,17 +301,27 @@ function applySwap(hex, ref, auto) {
   refresh();
 }
 
+// Outline the cells of the open row's color on every chart tile.
+function highlight() {
+  const row = swapOpen && lastResult && lastResult.conversions.find((c) => hexOf(c.src) === openRow);
+  viewers.forEach((v, i) => v.outline(row ? lastResult.tiles[i].box : null, row ? row.cells : [], lastResult.grid.nx));
+}
+
 function renderSwap() {
   const r = lastResult;
   $("swap").hidden = !swapOpen;
   $("swap-toggle").setAttribute("aria-expanded", String(swapOpen));
   $("swap-toggle").dataset.state = t(swapOpen ? "hide" : "show");
   $("swap-reset").disabled = Object.keys(swaps).length === 0;
+  highlight();
   const body = $("swap-table").tBodies[0];
   body.replaceChildren();
   if (!swapOpen || !r) return;
   const palRgb = Object.fromEntries(r.palette.map((p) => [p.ref, p.rgb]));
-  for (const row of r.conversions) {
+  // grouped by the bead they became (in the brand's code order), biggest color first in each group
+  const rows = [...r.conversions].sort((a, b) =>
+    a.ref.localeCompare(b.ref, undefined, { numeric: true }) || b.count - a.count);
+  for (const row of rows) {
     const hex = hexOf(row.src);
     const tr = body.insertRow();
     tr.className = "swaprow" + (row.swapped ? " swapped" : "") + (openRow === hex ? " open" : "");

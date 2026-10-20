@@ -68,10 +68,11 @@ def transparent_mask(rgba):
 _SAMPLES = 512  # pixels per line used to judge whether a row/column is plain
 
 
-def _plain_lines(rgb, axis, tol=75, frac=0.98, min_light=150):
-    """Bool per row (axis=0) or column (axis=1): a light, near-uniform line.
+def _plain_lines(rgb, axis, tol=75, frac=0.98, min_light=150, min_gray=90, max_tint=20):
+    """Bool per row (axis=0) or column (axis=1): a light or mid-gray, near-uniform line.
 
-    Light, so a dark ring that is part of the art is never taken for a frame; near-uniform
+    Light or neutral gray (a screenshot frame), so a dark or colored ring that is part of the
+    art is never taken for a frame; near-uniform
     (within `tol` summed RGB of the median for `frac` of its pixels), so JPEG noise and faint
     grid lines don't count as content."""
     other = 1 - axis
@@ -82,7 +83,9 @@ def _plain_lines(rgb, axis, tol=75, frac=0.98, min_light=150):
     shape = (-1, 1, 3) if axis == 0 else (1, -1, 3)
     dist = np.abs(rgb.astype(np.int32) - med.reshape(shape)).sum(axis=-1)
     uniform = (dist <= tol).mean(axis=other) >= frac
-    return uniform & (med.mean(axis=-1) >= min_light)
+    light = med.mean(axis=-1)
+    gray = (light >= min_gray) & (med.max(axis=-1) - med.min(axis=-1) <= max_tint)
+    return uniform & ((light >= min_light) | gray)
 
 
 def _over_white(rgba):

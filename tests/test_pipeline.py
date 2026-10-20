@@ -212,6 +212,16 @@ def test_trim_border_removes_frame_shadow_and_canvas():
     assert abs(cropped.shape[1] - 240) <= 24 and abs(cropped.shape[0] - 240) <= 24
 
 
+def test_trim_border_removes_mid_gray_frame():
+    img = upscale(make_art(24, seed=11), 10)
+    framed = np.full((340, 340, 3), 128, np.uint8)  # mid-gray screenshot frame
+    framed[10:330, 10:330] = 255                    # white gap
+    framed[50:290, 50:290] = img
+    cropped, (x0, y0, x1, y1) = trim_border(framed)
+    assert abs(x0 - 50) <= 12 and abs(y0 - 50) <= 12
+    assert abs(cropped.shape[1] - 240) <= 24 and abs(cropped.shape[0] - 240) <= 24
+
+
 def test_trim_keeps_dark_ring_that_is_part_of_the_art():
     art = make_art(16, seed=2)
     art[0, :] = art[-1, :] = art[:, 0] = art[:, -1] = 0  # black ring

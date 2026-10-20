@@ -42,7 +42,8 @@ class Pattern:
     def conversions(self, n_candidates=12, max_rows=80):
         """Every distinct source color and the bead it became, most used first.
 
-        Each row also lists the nearest palette colors, for swapping one in."""
+        Each row also lists the nearest palette colors, for swapping one in, and the
+        positions (y * nx + x) of the cells that color covers."""
         solid = self.cells >= 0
         if not solid.any():
             return []
@@ -51,6 +52,7 @@ class Pattern:
         inv = inv.reshape(-1)
         current = np.zeros(len(uniq), int)
         current[inv] = self.cells[solid]
+        flat = np.flatnonzero(solid.reshape(-1))   # cell index = y * nx + x
         auto = self.palette.match(uniq)
         keep = np.argsort(-counts, kind="stable")[:max_rows]
         d = delta_e2000(rgb_to_lab(uniq[keep])[:, None, :], self.palette.lab[None, :, :])
@@ -61,6 +63,7 @@ class Pattern:
                 "src": uniq[u].tolist(), "count": int(counts[u]),
                 "ref": self.palette.refs[current[u]], "auto": self.palette.refs[auto[u]],
                 "swapped": bool(current[u] != auto[u]),
+                "cells": flat[inv == u].tolist(),
                 "candidates": [{"ref": self.palette.refs[i],
                                 "rgb": self.palette.rgb[i].tolist(),
                                 "de": round(float(d[k, i]), 1)} for i in near]})
