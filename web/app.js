@@ -226,6 +226,7 @@ function show(r) {
 
   $("orig").src = originalUrl;
   $("preview").src = blobUrl(r.preview, "image/png");
+  $("cap-orig").textContent = `Original, ${r.original[0]} × ${r.original[1]} px`;
   $("cap-preview").textContent = `Pattern, ${g.nx} × ${g.ny}`;
   $("summary").textContent = `${g.nx} × ${g.ny}, ${r.legend.length} colors, ${r.total} beads.`;
 
