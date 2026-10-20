@@ -27,6 +27,7 @@ let detected = null;      // [columns, rows] found by Python
 let lastResult = null;
 let swaps = {};           // {"rrggbb": bead ref} chosen in the color swap panel
 let swapOpen = false;
+let sortRef = {};        // {"rrggbb": bead ref} the rows are grouped under; moves only on "Reorder"
 let openRow = null;       // hex of the swap row whose picker is open
 let fileStem = "";        // uploaded file name without its extension
 let brandInfo = {};       // key -> {symbols: bool}
@@ -331,9 +332,12 @@ function renderSwap() {
   body.replaceChildren();
   if (!swapOpen || !r) return;
   const palRgb = Object.fromEntries(r.palette.map((p) => [p.ref, p.rgb]));
-  // grouped by the bead they became (in the brand's code order), biggest color first in each group
+  // grouped by bead code, biggest color first in each group. Rows stay under the bead they were
+  // automatically matched to, so swapping does not make them jump; "Reorder" regroups them.
+  const group = (row) => sortRef[hexOf(row.src)] ?? row.auto;
   const rows = [...r.conversions].sort((a, b) =>
-    a.ref.localeCompare(b.ref, undefined, { numeric: true }) || b.count - a.count);
+    group(a).localeCompare(group(b), undefined, { numeric: true }) || b.count - a.count);
+  $("swap-reorder").disabled = rows.every((row) => group(row) === row.ref);
   for (const row of rows) {
     const hex = hexOf(row.src);
     const tr = body.insertRow();
@@ -378,18 +382,15 @@ function renderSwap() {
     for (const p of r.palette) any.add(new Option(p.ref, p.ref));
     any.addEventListener("change", () => { if (any.value) applySwap(hex, any.value, row.auto); });
     cell.append(any);
-    if (row.swapped) {
-      const undo = document.createElement("button");
-      undo.type = "button";
-      undo.textContent = t("swap_back", { ref: row.auto });
-      undo.addEventListener("click", () => applySwap(hex, row.auto, row.auto));
-      cell.append(undo);
-    }
   }
 }
 
 $("swap-toggle").addEventListener("click", () => { swapOpen = !swapOpen; renderSwap(); });
-$("swap-reset").addEventListener("click", () => { swaps = {}; openRow = null; refresh(); });
+$("swap-reset").addEventListener("click", () => { swaps = {}; sortRef = {}; openRow = null; refresh(); });
+$("swap-reorder").addEventListener("click", () => {
+  for (const row of lastResult.conversions) sortRef[hexOf(row.src)] = row.ref;
+  renderSwap();
+});
 
 // ---- outputs: the PNG opens in a new tab to be saved; the PDF goes through the print dialog ----
 
@@ -487,6 +488,7 @@ async function loadImage(blob, name) {
   lockRatio = null;
   detected = null;
   swaps = {};
+  sortRef = {};
   openRow = null;
   clearResult();
   refresh();
@@ -512,6 +514,7 @@ function applyBrandDefaults() {
 }
 $("brand").addEventListener("change", () => {
   swaps = {};   // swaps name beads of the old brand
+  sortRef = {};
   openRow = null;
   applyBrandDefaults();
   schedule();
