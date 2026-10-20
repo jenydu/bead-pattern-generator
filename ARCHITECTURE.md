@@ -130,6 +130,13 @@ image bytes
 - No pixel structure (edge density < 0.1% or no spectral line): <=150 px images are used
   1:1; bigger ones are treated as a photo and averaged down to 50 cells on the long side.
 
+## Chart viewer
+`web/viewer.js` shows each chart part (an SVG) in a box that fits it to the window by default;
+zoom with the buttons, Ctrl/Cmd + scroll or pinch, drag to pan, double-click to toggle. Several
+parts (pegboards, 52 cells per side by default) are shown one at a time with Prev / Next, or
+all at once. Printing shows every part, one per page. While Python loads or an image is
+processed, the status floats at the top of the screen so it is visible on a phone.
+
 ## Frontend
 
 One page, system fonts, no framework, no bundler. Mobile-first: a single column by default

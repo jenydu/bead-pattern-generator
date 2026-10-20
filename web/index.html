@@ -14,13 +14,12 @@
 
 <main>
   <form id="controls" onsubmit="return false">
-    <label>Bead brand
+    <label>Brand
       <select id="brand" disabled></select>
     </label>
 
     <label>Pixel art image
       <input type="file" id="file" accept="image/*" disabled>
-      <span class="note" id="file-note">Pick the brand first; the image can be chosen once Python has loaded.</span>
     </label>
 
     <fieldset id="gridbox" hidden>
@@ -38,49 +37,43 @@
         <input type="number" id="cy" min="1" max="200" inputmode="numeric" aria-label="Custom rows" disabled>
         <button type="button" id="use-custom" disabled>Use custom</button>
       </div>
-      <p id="gridinfo" class="note">Choose an image to detect its pixel size. Rows and columns keep the image's proportions.</p>
+      <p id="gridinfo" class="note"></p>
     </fieldset>
+
+    <label>Pegboard size (cells per side)
+      <input type="number" id="board" min="4" max="200" inputmode="numeric" value="52">
+    </label>
+
+    <label>Merge similar colors: <output id="tolout">6</output>
+      <input type="range" id="tol" min="0" max="20" step="1" value="6">
+    </label>
+
+    <label class="check"><input type="checkbox" id="clean" checked>
+      Trim borders and remove the white / transparent background
+    </label>
 
     <label>Cell labels
       <select id="labels">
         <option value="code">Bead codes (A1, B12...)</option>
         <option value="symbol">Symbols (? &gt; &lt; ~ ...)</option>
       </select>
-      <span class="note" id="labels-note">Symbols are easier to read than long codes. Each symbol is listed with its code in the bead list.</span>
-    </label>
-
-    <label>Pegboard size (cells per side)
-      <input type="number" id="board" min="4" max="200" inputmode="numeric" placeholder="29">
-      <span class="note">Optional. Splits the chart into boards of this size, numbered from 1 on each board, with red lines on the full sheet. Leave blank for no split.</span>
     </label>
 
     <label>Bead list order
       <select id="order">
         <option value="code">By code (brand order)</option>
-        <option value="group">By series (A, B, C...) or color family</option>
         <option value="count">By count (most first)</option>
       </select>
-    </label>
-
-    <label class="check"><input type="checkbox" id="clean" checked>
-      Trim borders and remove the white / transparent background
-      <span class="note">Untick if white beads are part of your design's background.</span>
-    </label>
-
-    <label>Merge similar colors: <output id="tolout">6</output>
-      <input type="range" id="tol" min="0" max="20" step="1" value="6">
-      <span class="note">Raise this if blur or compression left stray shades. 0 keeps every shade.</span>
     </label>
 
     <div class="row">
       <button type="button" id="print" disabled>Print / save as PDF</button>
       <button type="button" id="dl-png" disabled>Download PNG</button>
-      <button type="button" id="dl-svg" disabled>Download SVG</button>
     </div>
   </form>
 
   <section id="result" aria-live="polite">
-    <p id="status">Loading Python (first visit downloads about 10 MB)…</p>
+    <p id="status" role="status">Loading Python (first visit downloads about 10 MB)…</p>
     <div id="output" hidden>
       <div class="pair">
         <figure>
@@ -107,6 +100,18 @@
       </div>
 
       <h2>Chart</h2>
+      <div id="pager" class="pager" hidden>
+        <div class="seg" role="group" aria-label="Chart view">
+          <button type="button" id="view-one" aria-pressed="true">One at a time</button>
+          <button type="button" id="view-all" aria-pressed="false">All</button>
+        </div>
+        <div class="nav" id="nav">
+          <button type="button" id="prev" aria-label="Previous part">‹ Prev</button>
+          <span id="pos"></span>
+          <button type="button" id="next" aria-label="Next part">Next ›</button>
+        </div>
+      </div>
+      <p class="note hint">Zoom with + and −, Ctrl/⌘ + scroll, or pinch. Drag to move. Double-click to zoom in and out.</p>
       <div id="tiles"></div>
 
       <h2>Beads needed</h2>
@@ -120,9 +125,12 @@
 </main>
 
 <footer>
-  Color data: <a href="https://github.com/maxcleme/beadcolors">beadcolors</a> (MIT).
+  <a href="https://github.com/jenydu/bead-pattern-generator" aria-label="GitHub repository" title="GitHub repository">
+    <svg viewBox="0 0 16 16" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  </a>
 </footer>
 
+<script src="viewer.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

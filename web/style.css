@@ -47,7 +47,17 @@ button:hover:not(:disabled), .button:hover { background: #ddd; }
 button:disabled, .button.disabled { color: #888; cursor: default; pointer-events: none; }
 
 #result { margin-top: 1.5rem; }
+#status { margin: 0; }
 #status.error { color: #b00020; }
+/* while Python loads or an image is processed the message floats at the top, so it is visible
+   on a phone, where the results sit far below the settings */
+#status.loading { position: fixed; z-index: 10; top: .75rem; left: 50%; transform: translateX(-50%);
+  max-width: calc(100vw - 1.5rem); padding: .55rem 1rem; background: #fff; border: 1px solid #666;
+  display: flex; align-items: center; gap: .6rem; }
+#status.loading::before { content: ""; flex: none; width: 1rem; height: 1rem; border: 2px solid #999;
+  border-top-color: #111; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #status.loading::before { animation-duration: 3s; } }
 .pair { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
 .pair figure { margin: 0; flex: 1 1 14rem; max-width: 24rem; }
 .pair figcaption { font-size: .9rem; color: #555; margin-bottom: .25rem; }
@@ -56,15 +66,30 @@ dl#dims { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1re
 dl#dims dt { color: #555; }
 dl#dims dd { margin: 0; }
 dl#dims button { display: inline-block; margin: 0 0 0 .5rem; min-height: 36px; padding: .15rem .6rem; }
-.custom { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-.custom .label { color: #555; min-width: 7.5rem; }
-.custom input { width: 5rem; margin: 0; }
-.custom button { margin: 0; min-height: 36px; flex: 0 0 auto; }
+.custom { display: flex; flex-wrap: nowrap; gap: .4rem; align-items: center; }
+.custom .label { color: #555; flex: 0 0 auto; }
+.custom input { width: 3.6rem; min-width: 0; margin: 0; padding: .5rem .3rem; text-align: center; }
+.custom button { margin: 0; min-height: 44px; flex: 0 0 auto; white-space: nowrap; padding: .2rem .6rem; }
 
 .tile { margin: 0 0 1.5rem; }
 .tile figcaption { font-size: .9rem; color: #555; margin-bottom: .25rem; }
-.scroll { overflow: auto; border: 1px solid #ccc; max-width: 100%; }
-.scroll img { display: block; max-width: none; }
+.hint { margin: 0 0 .5rem; }
+.pager { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+.pager[hidden] { display: none; }
+.seg { display: flex; }
+.seg button, .nav button { flex: 0 0 auto; margin: 0; white-space: nowrap; }
+.seg button + button { margin-left: -1px; }
+.seg button[aria-pressed=true] { background: #111; border-color: #111; color: #fff; }
+.nav { display: flex; align-items: center; gap: .6rem; }
+.nav span { color: #555; font-size: .9rem; }
+#tiles.slide .tile:not(.active) { display: none; }
+#tiles.slide .tile figcaption { display: none; }
+.viewer { position: relative; overflow: hidden; background: #fff; border: 1px solid #999; cursor: grab; user-select: none; -webkit-user-select: none; }
+.viewer.dragging { cursor: grabbing; }
+.viewer .stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.viewer .stage img { display: block; max-width: none; pointer-events: none; }
+.vtools { position: absolute; right: .5rem; bottom: .5rem; display: flex; gap: .3rem; }
+.vtools button { flex: none; width: auto; min-height: 36px; min-width: 36px; margin: 0; padding: .1rem .55rem; background: rgba(255,255,255,.94); }
 
 table { border-collapse: collapse; width: 100%; max-width: 30rem; }
 th, td { border-bottom: 1px solid #ccc; padding: .3rem .5rem; text-align: left; }
@@ -84,20 +109,27 @@ tr.picker td { background: #fafafa; border-bottom: 1px solid #999; }
 tfoot td { font-weight: 600; }
 tr.group th { background: #f2f2f2; font-size: .9rem; border-bottom: 1px solid #999; }
 
-footer { margin-top: 2rem; font-size: .85rem; color: #555; }
+footer { margin-top: 2rem; }
+footer a { color: #555; display: inline-block; line-height: 0; padding: .4rem; margin-left: -.4rem; }
+footer a:hover { color: #111; }
 
 @media (min-width: 52rem) {
   main { display: grid; grid-template-columns: 24rem 1fr; gap: 2rem; align-items: start; }
   #result { margin-top: 0; min-width: 0; }
-  #controls { position: sticky; top: 1rem; }
+  /* the settings scroll on their own if they are taller than the window */
+  #controls { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; padding-right: .25rem; }
 }
 
 @media print {
-  header, #controls, footer, .pair, #summary, #status, #swap-wrap { display: none; }
+  header, #controls, footer, .pair, #summary, #status, #swap-wrap, .pager, .hint, .vtools { display: none !important; }
   body { padding: 0; max-width: none; }
   main { display: block; }
-  .scroll { overflow: visible; border: 0; }
-  .scroll img { max-width: 100%; max-height: 24cm; width: auto; height: auto; }
-  .tile { break-after: page; }
+  #tiles .tile { display: block !important; break-after: page; }
+  #tiles .tile figcaption { display: block !important; }
+  .viewer { height: auto !important; overflow: visible; border: 0; }
+  .viewer .stage { position: static; transform: none !important; }
+  .viewer .stage img { width: 100%; max-height: 24cm; object-fit: contain; }
   table { break-inside: avoid; }
 }
+
+#output.busy { opacity: .45; pointer-events: none; }

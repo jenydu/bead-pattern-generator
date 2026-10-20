@@ -29,12 +29,14 @@ let lastResult = null;
 let swaps = {};           // {"rrggbb": bead ref} chosen in the color swap panel
 let swapOpen = false;
 let openRow = null;       // hex of the swap row whose picker is open
+let fileStem = "";        // uploaded file name without its extension
 let brandInfo = {};       // key -> {symbols: bool}
 
-function setStatus(text, isError) {
+// kind: "loading" (floating banner with a spinner, so it is visible on a phone), "error", or none
+function setStatus(text, kind) {
   const s = $("status");
   s.textContent = text;
-  s.className = isError ? "error" : "";
+  s.className = kind || "";
   s.hidden = !text;
 }
 
@@ -47,11 +49,12 @@ const blobUrl = (data, type) => {
 async function refresh() {
   if (!imageBytes) return;
   if (!$("brand").value) {   // Python is still loading; the startup code calls refresh() again
-    setStatus("Loading Python (first visit downloads about 10 MB)…");
+    setStatus("Loading Python (first visit downloads about 10 MB)…", "loading");
     return;
   }
   const token = ++runToken;
-  setStatus("Working…");
+  if (!$("output").hidden) $("output").classList.add("busy");   // keep the old chart, dimmed
+  setStatus("Working…", "loading");
   try {
     const r = await call({
       type: "run",
@@ -70,7 +73,12 @@ async function refresh() {
     show(r);
     setStatus("");
   } catch (err) {
-    if (token === runToken) setStatus("Could not process this image: " + err.message, true);
+    if (token === runToken) {
+      $("output").hidden = true;
+      setStatus("Could not process this image: " + err.message, "error");
+    }
+  } finally {
+    if (token === runToken) $("output").classList.remove("busy");
   }
 }
 
@@ -117,7 +125,87 @@ function describeGrid(r) {
   return `Using the detected grid: each pixel is about ${g.period.toFixed(2)} px wide in the image.${trimmed}`;
 }
 
+// ---- chart: one zoomable viewer per part, shown one at a time or all ---------------------
+
+let viewers = [];
+let figures = [];
+let captions = [];
+let active = 0;
+let viewAll = false;
+
+function buildTiles(r) {
+  const tiles = $("tiles");
+  tiles.replaceChildren();
+  viewers = [];
+  figures = [];
+  captions = r.tiles.map((t, i) => {
+    const [x0, y0, x1, y1] = t.box;
+    const range = `columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`;
+    return t.board
+      ? `Board ${i + 1} of ${r.tiles.length} (board row ${t.board[0]}, column ${t.board[1]}) · ${range}`
+      : r.tiles.length > 1 ? `Part ${i + 1} of ${r.tiles.length} · ${range}` : "";
+  });
+  r.tiles.forEach((t, i) => {
+    const fig = document.createElement("figure");
+    fig.className = "tile";
+    fig.style.margin = "0 0 1.5rem";
+    const cap = document.createElement("figcaption");
+    cap.textContent = captions[i];
+    const v = new Viewer(blobUrl(t.svg, "image/svg+xml"), { onKey: (d) => go(active + d) });
+    fig.append(cap, v.el);
+    tiles.append(fig);
+    viewers.push(v);
+    figures.push(fig);
+  });
+  active = Math.min(active, viewers.length - 1);
+  updateView();
+}
+
+function go(i) {
+  if (viewAll || i < 0 || i >= viewers.length) return;
+  active = i;
+  updateView();
+  viewers[i].el.focus({ preventScroll: true });
+}
+
+function updateView() {
+  const n = viewers.length;
+  $("pager").hidden = n < 2;
+  $("tiles").classList.toggle("slide", n > 1 && !viewAll);
+  $("view-one").setAttribute("aria-pressed", String(!viewAll));
+  $("view-all").setAttribute("aria-pressed", String(viewAll));
+  $("nav").hidden = viewAll;
+  $("pos").textContent = captions[active]?.split(" (")[0].split(" · ")[0] ?? "";
+  $("prev").disabled = active === 0;
+  $("next").disabled = active === n - 1;
+  figures.forEach((f, i) => f.classList.toggle("active", i === active));
+  requestAnimationFrame(() => viewers.forEach((v) => v.layout()));
+}
+
+$("prev").addEventListener("click", () => go(active - 1));
+$("next").addEventListener("click", () => go(active + 1));
+$("view-one").addEventListener("click", () => { viewAll = false; updateView(); });
+$("view-all").addEventListener("click", () => { viewAll = true; updateView(); });
+
 // ---- results ----------------------------------------------------------------------------
+
+// Empty the page while a different image is processed.
+function clearResult() {
+  $("output").hidden = true;
+  $("output").classList.remove("busy");
+  $("tiles").replaceChildren();
+  viewers = []; figures = []; captions = []; active = 0;
+  for (const id of ["orig", "preview"]) $(id).removeAttribute("src");
+  $("legend").tBodies[0].replaceChildren();
+  $("swap-table").tBodies[0].replaceChildren();
+  $("print").disabled = $("dl-png").disabled = true;
+  urls.forEach(URL.revokeObjectURL);
+  urls = [];
+  lastResult = null;
+  lastSheet = "";
+  $("gridbox").hidden = true;
+  setCustomInputs("", "");
+}
 
 function show(r) {
   urls.forEach(URL.revokeObjectURL);
@@ -140,41 +228,11 @@ function show(r) {
   $("cap-preview").textContent = `Pattern, ${g.nx} × ${g.ny}`;
   $("summary").textContent = `${g.nx} × ${g.ny}, ${r.legend.length} colors, ${r.total} beads.`;
 
-  const tiles = $("tiles");
-  tiles.replaceChildren();
-  r.tiles.forEach((t, i) => {
-    const [x0, y0, x1, y1] = t.box;
-    const fig = document.createElement("figure");
-    fig.className = "tile";
-    const cap = document.createElement("figcaption");
-    cap.textContent = t.board
-      ? `Board ${i + 1} of ${r.tiles.length} (board row ${t.board[0]}, column ${t.board[1]}); pattern columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`
-      : r.tiles.length > 1
-        ? `Part ${i + 1} of ${r.tiles.length}: columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`
-        : "";
-    const box = document.createElement("div");
-    box.className = "scroll";
-    const img = document.createElement("img");
-    img.src = blobUrl(t.svg, "image/svg+xml");
-    img.alt = `Chart part ${i + 1}`;
-    box.append(img);
-    fig.append(cap, box);
-    tiles.append(fig);
-  });
+  buildTiles(r);
 
   const body = $("legend").tBodies[0];
   body.replaceChildren();
-  let group = null;
   for (const c of r.legend) {
-    if ($("order").value === "group" && c.group !== group) {
-      group = c.group;
-      const hr = body.insertRow();
-      hr.className = "group";
-      const th = document.createElement("th");
-      th.colSpan = 3;
-      th.textContent = group;
-      hr.append(th);
-    }
     const tr = body.insertRow();
     const sw = document.createElement("span");
     sw.className = "swatch";
@@ -194,7 +252,7 @@ function show(r) {
   lastResult = r;
   renderSwap();
   lastSheet = r.sheet;
-  $("print").disabled = $("dl-png").disabled = $("dl-svg").disabled = false;
+  $("print").disabled = $("dl-png").disabled = false;
   $("output").hidden = false;
 }
 
@@ -296,9 +354,6 @@ function save(blob, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-$("dl-svg").addEventListener("click", () =>
-  save(new Blob([lastSheet], { type: "image/svg+xml" }), "bead-pattern.svg"));
-
 $("dl-png").addEventListener("click", () => {
   const m = lastSheet.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
   const w = parseFloat(m[1]), h = parseFloat(m[2]);
@@ -312,12 +367,23 @@ $("dl-png").addEventListener("click", () => {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((b) => save(b, "bead-pattern.png"), "image/png");
+    canvas.toBlob((b) => save(b, `${outputName()}.png`), "image/png");
   };
   img.src = blobUrl(lastSheet, "image/svg+xml");
 });
 
-$("print").addEventListener("click", () => window.print());
+// The saved file is named "<brand>_<original file name>"; for "Save as PDF" the browser
+// proposes the page title, so borrow it for the print.
+function outputName() {
+  return `${$("brand").value}_${fileStem || "pattern"}`;
+}
+
+$("print").addEventListener("click", () => {
+  const title = document.title;
+  document.title = outputName();
+  window.addEventListener("afterprint", () => { document.title = title; }, { once: true });
+  window.print();
+});
 
 // ---- wiring -----------------------------------------------------------------------------
 
@@ -330,14 +396,14 @@ $("file").addEventListener("change", async (e) => {
   const f = e.target.files[0];
   if (!f) return;
   imageBytes = new Uint8Array(await f.arrayBuffer());
+  fileStem = f.name.replace(/\.[^.]*$/, "").replace(/[^\w.-]+/g, "-");
   if (originalUrl) URL.revokeObjectURL(originalUrl);
   originalUrl = URL.createObjectURL(f);
   custom = null;
   detected = null;
   swaps = {};
   openRow = null;
-  $("gridbox").hidden = true;
-  setCustomInputs("", "");
+  clearResult();
   refresh();
 });
 function applyBrandDefaults() {
@@ -363,6 +429,7 @@ $("tol").addEventListener("input", () => {
   schedule();
 });
 
+setStatus("Loading Python (first visit downloads about 10 MB)…", "loading");
 (async () => {
   try {
     const brands = await call({ type: "brands" });
@@ -373,11 +440,10 @@ $("tol").addEventListener("input", () => {
     }
     sel.disabled = false;
     $("file").disabled = false;
-    $("file-note").hidden = true;
     applyBrandDefaults();
     setStatus("Choose an image to begin.");
     if (imageBytes) refresh();
   } catch (err) {
-    setStatus("Could not start Python: " + err.message, true);
+    setStatus("Could not start Python: " + err.message, "error");
   }
 })();
