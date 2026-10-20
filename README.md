@@ -50,6 +50,7 @@ Pixel art found online rarely arrives clean. It has been scaled up by some odd f
 <td align="center"><img src="docs/images/cleaned_swapped.png" alt="Pattern with a black outline separating the hair" width="260"></td>
 </tr>
 </table>
+<sup>Pixel art by <a href="https://github.com/jenydu">@jenydu</a> | Featuring <a href="https://github.com/ff-zhang">@ff-zhang</a></sup>
 
 ## Features
 

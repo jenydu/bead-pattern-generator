@@ -50,6 +50,7 @@
 <td align="center"><img src="docs/images/cleaned_swapped.png" alt="黑色轮廓把头发区分开的图纸" width="260"></td>
 </tr>
 </table>
+<sup>像素画作者：<a href="https://github.com/jenydu">@jenydu</a> | 角色原图：<a href="https://github.com/ff-zhang">@ff-zhang</a></sup>
 
 ## 功能
 
