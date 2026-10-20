@@ -78,6 +78,8 @@ button.primary:disabled { background: #dfe4ea; border-color: #dfe4ea; color: #8d
 button.link { display: inline; width: auto; min-height: 0; margin: 0 0 0 .4rem; padding: 0; border: 0; background: none; color: var(--blue-strong); font: inherit; font-size: .9rem; text-decoration: underline; }
 button.link:hover:not(:disabled) { background: none; }
 button.link:disabled { background: none; color: #a29fa0; }
+.swap-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+.swap-actions button { margin: 0; }
 button.small { min-height: 36px; padding: .2rem .6rem; font-size: .92rem; margin: 0; }
 
 /* ---- pixel grid box ---- */
