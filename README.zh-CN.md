@@ -34,6 +34,23 @@
 
 *左：网上常见的样子，带灰色边框、JPEG 压缩痕迹，像素也被轻微拉伸。中：把整张图直接缩小成适合拼豆的格子，会把这些损伤平均进颜色里，图纸上满是杂色，边框也变成了拼豆。右：本工具找出真实网格，裁掉边框，还原出原来的像素画：30 x 29 格、10 种颜色。*
 
+**用“颜色替换”找回丢失的细节。** 每种颜色匹配到最接近的拼豆是自动完成的，但相近的深浅可能落在同一种拼豆上。这里头发的两种深棕色 #231610 和 #3b302a 都变成了 H16，头发的轮廓就和头发融在了一起。打开“颜色替换”，点开 #231610 这一行并选择 H7（黑色），对比就回来了，其余部分不受影响。
+
+<table>
+<tr>
+<th width="50%">自动匹配：两种棕色都是 H16</th>
+<th width="50%">把 #231610 换成 H7 之后</th>
+</tr>
+<tr>
+<td><img src="docs/images/swap_rows_before.png" alt="颜色替换列表：#231610 和 #3b302a 都匹配到 H16"></td>
+<td><img src="docs/images/swap_rows_after.png" alt="颜色替换列表：#231610 已换成 H7，#3b302a 仍是 H16"></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/cleaned.png" alt="头发是一整片深棕色的图纸" width="260"></td>
+<td align="center"><img src="docs/images/cleaned_swapped.png" alt="黑色轮廓把头发区分开的图纸" width="260"></td>
+</tr>
+</table>
+
 ## 功能
 
 **清理图片**

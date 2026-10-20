@@ -34,6 +34,23 @@ Pixel art found online rarely arrives clean. It has been scaled up by some odd f
 
 *Left: the sprite as it is usually found, with a gray frame, JPEG damage and slightly stretched pixels. Middle: shrinking the whole picture to a bead-sized grid averages the damage into the colors, so the chart is full of stray shades and the frame becomes beads. Right: this tool finds the real grid, trims the frame and gives back the original sprite, 30 x 29 cells in 10 colors.*
 
+**Fixing a lost detail with Color swap.** Matching each color to its nearest bead is automatic, but similar shades can land on the same bead. Here the two dark browns of the hair, #231610 and #3b302a, both become H16, so the hair outline blends into the hair. Open Color swap, click the #231610 row and pick H7 (black): the contrast comes back, and nothing else changes.
+
+<table>
+<tr>
+<th width="50%">Automatic: both browns are H16</th>
+<th width="50%">After swapping #231610 to H7</th>
+</tr>
+<tr>
+<td><img src="docs/images/swap_rows_before.png" alt="Color swap rows: #231610 and #3b302a both matched to H16"></td>
+<td><img src="docs/images/swap_rows_after.png" alt="Color swap rows: #231610 swapped to H7, #3b302a still H16"></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/cleaned.png" alt="Pattern with a flat dark brown hair" width="260"></td>
+<td align="center"><img src="docs/images/cleaned_swapped.png" alt="Pattern with a black outline separating the hair" width="260"></td>
+</tr>
+</table>
+
 ## Features
 
 **Cleaning up the image**
