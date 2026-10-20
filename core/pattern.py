@@ -18,6 +18,7 @@ class Pattern:
     palette: Palette
     cells: np.ndarray  # (ny, nx) int, -1 = empty
     source: np.ndarray  # (ny, nx, 3) uint8, the image color each cell was matched from
+    footprint: tuple = None  # (x, y, cell_w, cell_h): where cell (0, 0) sits in the uploaded image
 
     @property
     def shape(self):

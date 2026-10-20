@@ -14,6 +14,26 @@
 
 网上的像素画很少是干净的。它可能被放大过奇怪的倍数、被拉伸、存成了 JPEG、因缩放而变模糊、截图时带着边框和阴影，或者画在编辑器的网格线上。这个工具会找出真正的像素网格，只看每个像素中间受损最小的部分，为每个像素还原出一种干净的颜色，然后匹配到你选的拼豆或绣线。即使一张32 x 32的小图被存成了1080 x 1920的截图，它也能还原出32 x 32的图纸。
 
+<table>
+<tr>
+<th width="33%">输入：网上常见的样子</th>
+<th width="33%">常见生成器：直接缩小到 32 x 32</th>
+<th width="33%">本工具：还原真实像素</th>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/input.jpg" alt="一张 32 x 32 的小图，被存成 JPEG 截图，带灰色边框，像素也被拉伸"></td>
+<td align="center"><img src="docs/images/shrunk.png" alt="整张截图直接平均缩小到 32 x 32：变糊、错位，边框也变成了拼豆"></td>
+<td align="center"><img src="docs/images/cleaned.png" alt="还原出的 30 x 29 像素画，边框已去除"></td>
+</tr>
+<tr>
+<td></td>
+<td align="center"><img src="docs/images/shrunk_pattern.png" alt="缩小后的图生成的图纸：46 种颜色，1024 颗拼豆，大多是杂色"></td>
+<td align="center"><img src="docs/images/cleaned_pattern.png" alt="本工具生成的图纸：10 种颜色，637 颗拼豆"></td>
+</tr>
+</table>
+
+*左：网上常见的样子，带灰色边框、JPEG 压缩痕迹，像素也被轻微拉伸。中：把整张图直接缩小成适合拼豆的格子，会把这些损伤平均进颜色里，图纸上满是杂色，边框也变成了拼豆。右：本工具找出真实网格，裁掉边框，还原出原来的像素画：30 x 29 格、10 种颜色。*
+
 ## 功能
 
 **清理图片**

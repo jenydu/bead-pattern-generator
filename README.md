@@ -14,6 +14,26 @@ Most pattern generators take a photo and shrink it to a grid of beads, which blu
 
 Pixel art found online rarely arrives clean. It has been scaled up by some odd factor, stretched, saved as a JPEG, blurred by a resize, screenshotted with a frame and drop shadow, or drawn over an editor's grid lines. The generator works out the real pixel grid, looks at the middle of each pixel where the damage is smallest, and puts back one clean color per pixel. Then it matches those colors to the beads or thread you pick. A 32 x 32 sprite saved as a 1080 x 1920 JPEG screenshot comes out as the 32 x 32 sprite.
 
+<table>
+<tr>
+<th width="33%">The input: a typical online copy</th>
+<th width="33%">A typical generator: shrink to 32 x 32</th>
+<th width="33%">This tool: recover the real pixels</th>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/input.jpg" alt="A 32 x 32 sprite saved as a JPEG screenshot, stretched, with a gray frame"></td>
+<td align="center"><img src="docs/images/shrunk.png" alt="The screenshot averaged down to 32 x 32: blurred, shifted, with the frame as beads"></td>
+<td align="center"><img src="docs/images/cleaned.png" alt="The 30 x 29 sprite recovered, frame removed"></td>
+</tr>
+<tr>
+<td></td>
+<td align="center"><img src="docs/images/shrunk_pattern.png" alt="Bead chart from the shrunk image: 46 colors, 1024 beads, mostly stray shades"></td>
+<td align="center"><img src="docs/images/cleaned_pattern.png" alt="Bead chart from this tool: 10 colors, 637 beads"></td>
+</tr>
+</table>
+
+*Left: the sprite as it is usually found, with a gray frame, JPEG damage and slightly stretched pixels. Middle: shrinking the whole picture to a bead-sized grid averages the damage into the colors, so the chart is full of stray shades and the frame becomes beads. Right: this tool finds the real grid, trims the frame and gives back the original sprite, 30 x 29 cells in 10 colors.*
+
 ## Features
 
 **Cleaning up the image**

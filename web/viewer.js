@@ -34,31 +34,6 @@ class Viewer {
     el.addEventListener("keydown", (e) => this.key(e));
   }
 
-  // Outline cells on the chart. box is the tile's [x0, y0, x1, y1] in pattern cells, cells are
-  // pattern indices (y * nx + x); a null box clears the outline. Geometry matches render_chart.
-  outline(box, cells, nx, cell = 40) {
-    this.marks?.remove();
-    this.marks = null;
-    if (!box) return;
-    const [x0, y0, x1, y1] = box, m = cell * 0.8, NS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("class", "marks");
-    svg.setAttribute("width", m + (x1 - x0) * cell + 2);
-    svg.setAttribute("height", m + (y1 - y0) * cell + 2);
-    for (const c of cells) {
-      const x = c % nx, y = (c - x) / nx;
-      if (x < x0 || x >= x1 || y < y0 || y >= y1) continue;
-      const r = document.createElementNS(NS, "rect");
-      r.setAttribute("x", m + (x - x0) * cell + 2);
-      r.setAttribute("y", m + (y - y0) * cell + 2);
-      r.setAttribute("width", cell - 4);
-      r.setAttribute("height", cell - 4);
-      svg.append(r);
-    }
-    this.marks = svg;
-    this.stage.append(svg);
-  }
-
   tools() {
     const bar = document.createElement("div");
     bar.className = "vtools";
