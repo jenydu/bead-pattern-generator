@@ -141,6 +141,7 @@ function buildTiles(r) {
   captions = r.tiles.map((t, i) => {
     const [x0, y0, x1, y1] = t.box;
     const range = `columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`;
+    if (r.tiles.length === 1) return "";   // nothing to number
     return t.board
       ? `Board ${i + 1} of ${r.tiles.length} (board row ${t.board[0]}, column ${t.board[1]}) · ${range}`
       : r.tiles.length > 1 ? `Part ${i + 1} of ${r.tiles.length} · ${range}` : "";

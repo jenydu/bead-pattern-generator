@@ -13,7 +13,7 @@
 </header>
 
 <main>
-  <form id="controls" onsubmit="return false">
+  <form id="controls" class="card" onsubmit="return false">
     <label>Brand
       <select id="brand" disabled></select>
     </label>
@@ -24,18 +24,19 @@
 
     <fieldset id="gridbox" hidden>
       <legend>Pixel grid</legend>
-      <dl id="dims">
-        <dt>Original image</dt><dd id="d-original">–</dd>
-        <dt>Current pattern</dt><dd id="d-current">–</dd>
-        <dt>Detected</dt>
-        <dd><span id="d-detected">–</span> <button type="button" id="use-detected" disabled>Use detected</button></dd>
-      </dl>
-      <div class="custom">
-        <span class="label">Custom</span>
-        <input type="number" id="cx" min="1" max="200" inputmode="numeric" aria-label="Custom columns" disabled>
-        <span aria-hidden="true">×</span>
-        <input type="number" id="cy" min="1" max="200" inputmode="numeric" aria-label="Custom rows" disabled>
-        <button type="button" id="use-custom" disabled>Use custom</button>
+      <div class="gridrows">
+        <span class="k">Original</span><span class="v wide" id="d-original">–</span>
+        <span class="k">Current</span><span class="v wide" id="d-current">–</span>
+        <span class="k">Detected</span>
+        <span class="v" id="d-detected">–</span>
+        <button type="button" id="use-detected" class="small" disabled>Use detected</button>
+        <span class="k">Custom</span>
+        <span class="v inputs">
+          <input type="number" id="cx" min="1" max="200" inputmode="numeric" aria-label="Custom columns" disabled>
+          <span aria-hidden="true">×</span>
+          <input type="number" id="cy" min="1" max="200" inputmode="numeric" aria-label="Custom rows" disabled>
+        </span>
+        <button type="button" id="use-custom" class="small" disabled>Use custom</button>
       </div>
       <p id="gridinfo" class="note"></p>
     </fieldset>
@@ -67,59 +68,65 @@
     </label>
 
     <div class="row">
-      <button type="button" id="print" disabled>Print / save as PDF</button>
-      <button type="button" id="dl-png" disabled>Download PNG</button>
+      <button type="button" id="print" class="primary" disabled>Print / save as PDF</button>
+      <button type="button" id="dl-png" class="primary" disabled>Download PNG</button>
     </div>
   </form>
 
   <section id="result" aria-live="polite">
     <p id="status" role="status">Loading Python (first visit downloads about 10 MB)…</p>
     <div id="output" hidden>
-      <div class="pair">
-        <figure>
-          <figcaption>Original</figcaption>
-          <img id="orig" alt="Original image">
-        </figure>
-        <figure>
-          <figcaption id="cap-preview">Pattern</figcaption>
-          <img id="preview" alt="Pattern preview">
-        </figure>
-      </div>
-      <p id="summary" class="note"></p>
+      <section class="card">
+        <div class="pair">
+          <figure>
+            <figcaption>Original</figcaption>
+            <img id="orig" alt="Original image">
+          </figure>
+          <figure>
+            <figcaption id="cap-preview">Pattern</figcaption>
+            <img id="preview" alt="Pattern preview">
+          </figure>
+        </div>
+        <p id="summary" class="note"></p>
+      </section>
 
-      <div id="swap-wrap">
-        <button type="button" id="swap-toggle" aria-expanded="false" aria-controls="swap">Color swap</button>
+      <section id="swap-wrap" class="card flush">
+        <button type="button" id="swap-toggle" class="bar" aria-expanded="false" aria-controls="swap">Color swap</button>
         <div id="swap" hidden>
           <p class="note">Each row is a color found in your image and the bead it was matched to. Click a row to pick a different bead, for example to tell two similar shades apart. Colors already merged by "Merge similar colors" show as one row; lower that slider to separate them.</p>
           <table id="swap-table">
             <thead><tr><th>Image color</th><th>Bead</th><th class="num">Cells</th></tr></thead>
             <tbody></tbody>
           </table>
-          <button type="button" id="swap-reset" disabled>Reset all swaps</button>
+          <button type="button" id="swap-reset" class="small" disabled>Reset all swaps</button>
         </div>
-      </div>
+      </section>
 
-      <h2>Chart</h2>
-      <div id="pager" class="pager" hidden>
-        <div class="seg" role="group" aria-label="Chart view">
-          <button type="button" id="view-one" aria-pressed="true">One at a time</button>
-          <button type="button" id="view-all" aria-pressed="false">All</button>
+      <section class="card">
+        <h2>Chart</h2>
+        <div id="pager" class="pager" hidden>
+          <div class="seg" role="group" aria-label="Chart view">
+            <button type="button" id="view-one" aria-pressed="true">One at a time</button>
+            <button type="button" id="view-all" aria-pressed="false">All</button>
+          </div>
+          <div class="nav" id="nav">
+            <button type="button" id="prev" aria-label="Previous part">‹ Prev</button>
+            <span id="pos"></span>
+            <button type="button" id="next" aria-label="Next part">Next ›</button>
+          </div>
         </div>
-        <div class="nav" id="nav">
-          <button type="button" id="prev" aria-label="Previous part">‹ Prev</button>
-          <span id="pos"></span>
-          <button type="button" id="next" aria-label="Next part">Next ›</button>
-        </div>
-      </div>
-      <p class="note hint">Zoom with + and −, Ctrl/⌘ + scroll, or pinch. Drag to move. Double-click to zoom in and out.</p>
-      <div id="tiles"></div>
+        <p class="note hint">Zoom with + and −, Ctrl/⌘ + scroll, or pinch. Drag to move. Double-click to zoom in and out.</p>
+        <div id="tiles"></div>
+      </section>
 
-      <h2>Beads needed</h2>
-      <table id="legend">
-        <thead><tr><th>Color</th><th>Code</th><th class="num">Count</th></tr></thead>
-        <tbody></tbody>
-        <tfoot><tr><td colspan="2">Total</td><td class="num" id="total"></td></tr></tfoot>
-      </table>
+      <section class="card">
+        <h2>Beads needed</h2>
+        <table id="legend">
+          <thead><tr><th>Color</th><th>Code</th><th class="num">Count</th></tr></thead>
+          <tbody></tbody>
+          <tfoot><tr><td colspan="2">Total</td><td class="num" id="total"></td></tr></tfoot>
+        </table>
+      </section>
     </div>
   </section>
 </main>
