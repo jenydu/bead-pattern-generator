@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const worker = new Worker("worker.js?v=24ac4c20");
+const worker = new Worker("worker.js?v=5b8f4adc");
 
 let nextId = 1;
 const pending = new Map();
@@ -66,6 +66,7 @@ async function refresh() {
       board: parseInt($("board").value, 10) || 0,
       order: $("order").value,
       clean: $("clean").checked,
+      mirror: $("mirror").checked,
       labels: $("labels").value,
       swaps: JSON.stringify(swaps),
       texts: JSON.stringify({   // wording of the saved sheet, which Python draws
@@ -519,6 +520,7 @@ $("brand").addEventListener("change", () => {
   applyBrandDefaults();
   schedule();
 });
+$("mirror").addEventListener("change", schedule);
 $("labels").addEventListener("change", schedule);
 $("board").addEventListener("input", schedule);
 $("order").addEventListener("change", schedule);

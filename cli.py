@@ -23,6 +23,7 @@ def main(argv=None):
     ap.add_argument("--order", default="code", choices=["code", "count"])
     ap.add_argument("--keep-edges", action="store_true",
                     help="do not trim borders or remove the white/transparent background")
+    ap.add_argument("--mirror", action="store_true", help="flip the pattern left to right")
     ap.add_argument("--out", type=Path, help="directory for the SVG charts")
     a = ap.parse_args(argv)
 
@@ -33,7 +34,8 @@ def main(argv=None):
           f"{prep.rgba.shape[0]} after trimming; {prep.kind}; grid {g.nx}x{g.ny}  period "
           f"{g.period_x:.3f}x{g.period_y:.3f}  confidence {g.confidence:.1f}")
     nx, ny = a.cells or (0, 0)
-    pattern = build(prep, load_palette(a.brand), nx, ny, a.tolerance, not a.keep_edges)
+    pattern = build(prep, load_palette(a.brand), nx, ny, a.tolerance, not a.keep_edges,
+                    mirror=a.mirror)
     legend = pattern.legend(a.order)
     print(f"pattern {pattern.shape[1]}x{pattern.shape[0]}, {len(legend)} colors, "
           f"{sum(c['count'] for c in legend)} beads")

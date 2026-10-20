@@ -37,7 +37,8 @@ def _prepare(data, clean_edges):
 
 
 def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
-        order="code", clean_edges=True, labels="code", swaps="{}", texts="{}"):
+        order="code", clean_edges=True, labels="code", swaps="{}", texts="{}",
+        mirror=False):
     """Image bytes -> everything the page shows.
 
     cells_x / cells_y > 0 replaces the detected grid (relative to the trimmed art).
@@ -49,7 +50,7 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
         brand = "mard_291"
     palette = load_palette(brand)
     pattern = build(prep, palette, int(cells_x), int(cells_y), tolerance, bool(clean_edges),
-                    json.loads(swaps or "{}"))
+                    json.loads(swaps or "{}"), bool(mirror))
     labels = "symbol" if labels == "symbol" else "code"
     ny, nx = pattern.shape
     board = int(board) if board and board > 0 else None
