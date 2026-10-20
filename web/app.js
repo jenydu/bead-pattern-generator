@@ -478,13 +478,11 @@ function schedule() {
   timer = setTimeout(refresh, 250);
 }
 
-$("file").addEventListener("change", async (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  imageBytes = new Uint8Array(await f.arrayBuffer());
-  fileStem = f.name.replace(/\.[^.]*$/, "").replace(/[^\w.-]+/g, "-");
+async function loadImage(blob, name) {
+  imageBytes = new Uint8Array(await blob.arrayBuffer());
+  fileStem = name.replace(/\.[^.]*$/, "").replace(/[^\w.-]+/g, "-");
   if (originalUrl) URL.revokeObjectURL(originalUrl);
-  originalUrl = URL.createObjectURL(f);
+  originalUrl = URL.createObjectURL(blob);
   custom = null;
   lockRatio = null;
   detected = null;
@@ -492,6 +490,21 @@ $("file").addEventListener("change", async (e) => {
   openRow = null;
   clearResult();
   refresh();
+}
+
+$("file").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (f) loadImage(f, f.name);
+});
+$("sample").addEventListener("click", async () => {
+  try {
+    const res = await fetch("sample.jpg");
+    if (!res.ok) throw new Error(res.status);
+    $("file").value = "";
+    await loadImage(await res.blob(), "sample.jpg");
+  } catch (err) {
+    setStatus(t("err_process") + err.message, "error");
+  }
 });
 function applyBrandDefaults() {
   // brands with long codes (Perler's 80-15179) read better as symbols
@@ -561,7 +574,7 @@ setStatus(t("loading_python"), "loading");
       sel.add(new Option(brandLabel(b.key), b.key));
     }
     sel.disabled = false;
-    $("file").disabled = false;
+    $("file").disabled = $("sample").disabled = false;
     applyBrandDefaults();
     setStatus(t("choose_image"));
     if (imageBytes) refresh();
