@@ -75,6 +75,9 @@ button:disabled { color: #a29fa0; background: #f3f1f1; cursor: default; }
 button.primary { flex: 1 1 8rem; margin: 0; background: var(--blue); border-color: var(--blue); color: #1b2430; font-weight: 600; }
 button.primary:hover:not(:disabled) { background: #7b90a6; border-color: #7b90a6; }
 button.primary:disabled { background: #dfe4ea; border-color: #dfe4ea; color: #8d96a1; }
+button.link { display: inline; width: auto; min-height: 0; margin: 0 0 0 .4rem; padding: 0; border: 0; background: none; color: var(--blue-strong); font: inherit; font-size: .9rem; text-decoration: underline; }
+button.link:hover:not(:disabled) { background: none; }
+button.link:disabled { background: none; color: #a29fa0; }
 button.small { min-height: 36px; padding: .2rem .6rem; font-size: .92rem; margin: 0; }
 
 /* ---- pixel grid box ---- */
