@@ -34,7 +34,7 @@ Pixel art found online rarely arrives clean. It has been scaled up by some odd f
 
 *Left: the sprite as it is usually found, with a gray frame, JPEG damage and slightly stretched pixels. Middle: shrinking the whole picture to a bead-sized grid averages the damage into the colors, so the chart is full of stray shades and the frame becomes beads. Right: this tool finds the real grid, trims the frame and gives back the original sprite, 30 x 29 cells in 10 colors.*
 
-**Fixing a lost detail with Color swap.** Matching each color to its nearest bead is automatic, but similar shades can land on the same bead. Here the two dark browns of the hair, #231610 and #3b302a, both become H16, so the hair outline blends into the hair. Open Color swap, click the #231610 row and pick H7 (black): the contrast comes back, and nothing else changes.
+**Fixing a lost detail with Color swap.** Matching each color to its nearest bead is automatic, but similar shades can land on the same bead. Here the two dark browns of the hair, #231610 and #3b302a, both become H16, so the hair outline blends into the hair. Open Color swap and click the #231610 row. It lists the 12 beads closest to that color, nearest first, each with its color difference (lower is closer). Pick H7 (black) from the list: the contrast comes back, and nothing else changes.
 
 <table>
 <tr>
@@ -62,7 +62,7 @@ Pixel art found online rarely arrives clean. It has been scaled up by some odd f
 
 **Making the pattern**
 - Matches every color to the nearest bead or thread in perceptual (CIELAB, CIEDE2000) distance.
-- Color swap: see which image color became which bead, and send any one of them to a different, similar bead.
+- Color swap: see which image color became which bead, and send any one of them to a different bead. Each row suggests the closest alternatives, nearest first with their color difference; the full palette is there too if you want it.
 - Chart cells show the bead code or a symbol. Symbols are the default for brands with long or purely numeric codes (Perler, DMC).
 - Pegboard size (52 by default) splits larger patterns into boards, each numbered from 1, with red board lines on the full sheet.
 - Bead list with counts and a total, ordered by code or by count.

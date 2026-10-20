@@ -140,16 +140,10 @@ def clear_background(rgba, min_lightness=92.0, max_chroma=8.0):
     return rgba
 
 
-def content_box(rgba):
-    """(x0, y0, x1, y1) of the cells that hold a bead; the whole array if there are none."""
-    solid = np.asarray(rgba)[..., 3] >= ALPHA_CUTOFF
-    if not solid.any():
-        return 0, 0, solid.shape[1], solid.shape[0]
-    ys, xs = np.nonzero(solid)
-    return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
-
-
 def crop_to_content(rgba):
     """Drop empty outer rows and columns."""
-    x0, y0, x1, y1 = content_box(rgba)
-    return rgba[y0:y1, x0:x1]
+    solid = np.asarray(rgba)[..., 3] >= ALPHA_CUTOFF
+    if not solid.any():
+        return rgba
+    ys, xs = np.nonzero(solid)
+    return rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1]

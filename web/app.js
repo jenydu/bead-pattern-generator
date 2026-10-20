@@ -301,31 +301,23 @@ function applySwap(hex, ref, auto) {
   refresh();
 }
 
-// Outline the cells of the open row's color on the original image and on the pattern preview.
-function outline(frame, w, h, rects) {
+// Outline the cells of the open row's color on the pattern preview.
+function highlight() {
+  const frame = $("frame-preview");
   frame.querySelector(".marks")?.remove();
-  if (!rects.length) return;
+  const r = lastResult;
+  const row = swapOpen && r && r.conversions.find((c) => hexOf(c.src) === openRow);
+  if (!row) return;
+  const nx = r.grid.nx;
   const NS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(NS, "svg");
   svg.setAttribute("class", "marks");
-  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("viewBox", `0 0 ${nx} ${r.grid.ny}`);
   svg.setAttribute("preserveAspectRatio", "none");
   const path = document.createElementNS(NS, "path");
-  path.setAttribute("d", rects.map(([x, y, rw, rh]) => `M${x} ${y}h${rw}v${rh}h${-rw}z`).join(""));
+  path.setAttribute("d", row.cells.map((c) => `M${c % nx} ${Math.floor(c / nx)}h1v1h-1z`).join(""));
   svg.append(path);
   frame.append(svg);
-}
-
-function highlight() {
-  const r = lastResult;
-  const row = swapOpen && r && r.conversions.find((c) => hexOf(c.src) === openRow);
-  const nx = r ? r.grid.nx : 0;
-  const cells = row ? row.cells : [];
-  const [fx, fy, fw, fh] = r ? r.footprint : [];
-  const at = (c) => [c % nx, Math.floor(c / nx)];
-  outline($("frame-preview"), nx, r ? r.grid.ny : 0, cells.map((c) => [...at(c), 1, 1]));
-  outline($("frame-orig"), r ? r.original[0] : 0, r ? r.original[1] : 0,
-    cells.map((c) => { const [x, y] = at(c); return [fx + x * fw, fy + y * fh, fw, fh]; }));
 }
 
 function renderSwap() {
