@@ -12,6 +12,13 @@ from .render import render_chart, render_preview, render_sheet, tile_boxes
 
 _cache = {}
 
+# Wording of the downloadable sheet. The page passes translations of these.
+SHEET_TEXTS = {
+    "title": "{brand} bead pattern: {colors} colors, {beads} beads",
+    "subtitle": "{cols} x {rows} cells",
+    "subtitle_board": "{cols} x {rows} cells, red lines every {board} cells (one pegboard)",
+}
+
 
 def brands():
     return [{"key": k, "label": v, "symbols": load_palette(k).prefers_symbols}
@@ -30,7 +37,7 @@ def _prepare(data, clean_edges):
 
 
 def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
-        order="code", clean_edges=True, labels="code", swaps="{}"):
+        order="code", clean_edges=True, labels="code", swaps="{}", texts="{}"):
     """Image bytes -> everything the page shows.
 
     cells_x / cells_y > 0 replaces the detected grid (relative to the trimmed art).
@@ -48,7 +55,10 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
     board = int(board) if board and board > 0 else None
     legend = pattern.legend(order)
     total = sum(c["count"] for c in legend)
-    title = f"{palette.label} bead pattern: {len(legend)} colors, {total} beads"
+    words = {**SHEET_TEXTS, "brand": palette.label, **json.loads(texts or "{}")}
+    title = words["title"].format(brand=words["brand"], colors=len(legend), beads=total)
+    subtitle = words["subtitle_board" if board else "subtitle"].format(
+        cols=nx, rows=ny, board=board)
     tiles = []
     for box in tile_boxes(pattern.shape, board=board):
         tile = {"box": list(box),
@@ -68,7 +78,7 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
         "total": total,
         "preview": render_preview(pattern, scale=max(1, min(16, 384 // max(nx, ny)))),
         "sheet": render_sheet(pattern, legend, title, board=board, show_groups=order == "group",
-                              labels=labels),
+                              labels=labels, subtitle=subtitle),
         "conversions": pattern.conversions(),
         "palette": [{"ref": r, "rgb": c.tolist()} for r, c in zip(palette.refs, palette.rgb)],
         "tiles": tiles,

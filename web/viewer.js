@@ -14,7 +14,7 @@ class Viewer {
     el.className = "viewer";
     el.tabIndex = 0;
     el.setAttribute("role", "group");
-    el.setAttribute("aria-label", "Chart. Use plus and minus to zoom, arrow keys to pan.");
+    el.setAttribute("aria-label", t("viewer_aria"));
     this.stage = document.createElement("div");
     this.stage.className = "stage";
     this.img = new Image();
@@ -48,10 +48,10 @@ class Viewer {
       b.addEventListener("dblclick", (e) => e.stopPropagation());
       bar.append(b);
     };
-    add("−", "Zoom out", () => this.zoomBy(1 / 1.4));
-    add("+", "Zoom in", () => this.zoomBy(1.4));
-    add("Fit", "Fit to window", () => this.fit());
-    add("100%", "Actual size", () => this.actual());
+    add("−", t("zoom_out"), () => this.zoomBy(1 / 1.4));
+    add("+", t("zoom_in"), () => this.zoomBy(1.4));
+    add(t("fit"), t("fit_aria"), () => this.fit());
+    add(t("actual"), t("actual_aria"), () => this.actual());
     return bar;
   }
 

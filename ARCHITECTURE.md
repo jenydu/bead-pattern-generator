@@ -130,6 +130,15 @@ image bytes
 - No pixel structure (edge density < 0.1% or no spectral line): <=150 px images are used
   1:1; bigger ones are treated as a photo and averaged down to 50 cells on the long side.
 
+## Languages
+`web/i18n.js` holds the English and Simplified Chinese text (one key per line, `{name}` for
+filled-in values); `t(key, values)` looks it up, and `data-i18n` / `data-i18n-attr` in the HTML
+mark the static text. The language is chosen from a dropdown, remembered in `localStorage`, and
+defaults to the browser language. Python never knows the language: the page passes the wording of
+the downloadable sheet to `api.run(texts=...)` (defaults in `api.SHEET_TEXTS`). `tests/test_i18n.py`
+checks that both languages have the same keys and placeholders. Color names and bead codes are
+not translated. `README.zh-CN.md` is the Chinese README.
+
 ## Chart viewer
 `web/viewer.js` shows each chart part (an SVG) in a box that fits it to the window by default;
 zoom with the buttons, Ctrl/Cmd + scroll or pinch, drag to pan, double-click to toggle. Several

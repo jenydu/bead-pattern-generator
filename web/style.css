@@ -22,7 +22,8 @@ body {
   color: var(--ink);
   background: var(--bg);
 }
-header { margin: 0 0 1.25rem; }
+header { margin: 0 0 1.25rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+#lang { width: auto; min-height: 38px; margin: 0; flex: none; }
 h1 { font-size: 1.5rem; margin: 0 0 .15rem; font-weight: 650; letter-spacing: -.01em; }
 header p { margin: 0; color: var(--muted); }
 h2 { font-size: 1.05rem; margin: 0 0 .75rem; font-weight: 650; }
@@ -100,8 +101,7 @@ button.small { min-height: 36px; padding: .2rem .6rem; font-size: .92rem; margin
 
 /* color swap: its own box, closed by default */
 #swap-toggle.bar { display: flex; width: 100%; justify-content: space-between; align-items: center; margin: 0; min-height: 52px; padding: .6rem 1.2rem; border: 0; border-radius: 0; background: transparent; font-weight: 650; text-align: left; }
-#swap-toggle.bar::after { content: "Show"; font-weight: 400; font-size: .9rem; color: var(--muted); }
-#swap-toggle.bar[aria-expanded=true]::after { content: "Hide"; }
+#swap-toggle.bar::after { content: attr(data-state); font-weight: 400; font-size: .9rem; color: var(--muted); }
 #swap-toggle.bar:hover:not(:disabled) { background: var(--blush); }
 #swap { padding: 0 1.2rem 1.1rem; border-top: 1px solid var(--line); }
 #swap > .note:first-child { margin-top: .8rem; }

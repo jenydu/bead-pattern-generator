@@ -8,73 +8,79 @@
 </head>
 <body>
 <header>
-  <h1>Pixel Art to Beads (PA2B)</h1>
-  <p>Upload pixel art and get a bead chart in your brand's colors. Everything runs in your browser; the image is not uploaded anywhere.</p>
+  <div>
+    <h1 data-i18n="title">Pixel Art to Beads (PA2B)</h1>
+    <p data-i18n="tagline">Upload pixel art and get a bead chart in your brand's colors. Everything runs in your browser; the image is not uploaded anywhere.</p>
+  </div>
+  <select id="lang" aria-label="Language" data-i18n-attr="aria-label:language">
+    <option value="en">English</option>
+    <option value="zh">简体中文</option>
+  </select>
 </header>
 
 <main>
   <form id="controls" class="card" onsubmit="return false">
-    <label>Brand
+    <label><span data-i18n="brand">Brand</span>
       <select id="brand" disabled></select>
     </label>
 
-    <label>Pixel art image
+    <label><span data-i18n="image">Pixel art image</span>
       <input type="file" id="file" accept="image/*" disabled>
     </label>
 
     <fieldset id="gridbox" hidden>
-      <legend>Pixel grid</legend>
+      <legend data-i18n="grid">Pixel grid</legend>
       <div class="gridrows">
-        <span class="k">Original</span><span class="v wide" id="d-original">–</span>
-        <span class="k">Current</span><span class="v wide" id="d-current">–</span>
-        <span class="k">Detected</span>
+        <span class="k" data-i18n="g_original">Original</span><span class="v wide" id="d-original">–</span>
+        <span class="k" data-i18n="g_current">Current</span><span class="v wide" id="d-current">–</span>
+        <span class="k" data-i18n="g_detected">Detected</span>
         <span class="v" id="d-detected">–</span>
-        <button type="button" id="use-detected" class="small" disabled>Use detected</button>
-        <span class="k">Custom</span>
+        <button type="button" id="use-detected" class="small" data-i18n="use_detected" disabled>Use detected</button>
+        <span class="k" data-i18n="g_custom">Custom</span>
         <span class="v inputs">
-          <input type="number" id="cx" min="1" max="200" inputmode="numeric" aria-label="Custom columns" disabled>
+          <input type="number" id="cx" min="1" max="200" inputmode="numeric" aria-label="Custom columns" data-i18n-attr="aria-label:cols_aria" disabled>
           <span aria-hidden="true">×</span>
-          <input type="number" id="cy" min="1" max="200" inputmode="numeric" aria-label="Custom rows" disabled>
+          <input type="number" id="cy" min="1" max="200" inputmode="numeric" aria-label="Custom rows" data-i18n-attr="aria-label:rows_aria" disabled>
         </span>
-        <button type="button" id="use-custom" class="small" disabled>Use custom</button>
+        <button type="button" id="use-custom" class="small" data-i18n="use_custom" disabled>Use custom</button>
       </div>
       <p id="gridinfo" class="note"></p>
     </fieldset>
 
-    <label>Pegboard size (cells per side)
+    <label><span data-i18n="board">Pegboard size (cells per side)</span>
       <input type="number" id="board" min="4" max="200" inputmode="numeric" value="52">
     </label>
 
-    <label>Merge similar colors: <output id="tolout">6</output>
+    <label><span><span data-i18n="merge">Merge similar colors</span>: <output id="tolout">6</output></span>
       <input type="range" id="tol" min="0" max="20" step="1" value="6">
     </label>
 
     <label class="check"><input type="checkbox" id="clean" checked>
-      Trim borders and remove the white / transparent background
+      <span data-i18n="trim">Trim borders and remove the white / transparent background</span>
     </label>
 
-    <label>Cell labels
+    <label><span data-i18n="labels">Cell labels</span>
       <select id="labels">
-        <option value="code">Bead codes (A1, B12...)</option>
-        <option value="symbol">Symbols (? &gt; &lt; ~ ...)</option>
+        <option value="code" data-i18n="labels_code">Bead codes (A1, B12...)</option>
+        <option value="symbol" data-i18n="labels_symbol">Symbols (? &gt; &lt; ~ ...)</option>
       </select>
     </label>
 
-    <label>Bead list order
+    <label><span data-i18n="order">Bead list order</span>
       <select id="order">
-        <option value="code">By code (brand order)</option>
-        <option value="count">By count (most first)</option>
+        <option value="code" data-i18n="order_code">By code (brand order)</option>
+        <option value="count" data-i18n="order_count">By count (most first)</option>
       </select>
     </label>
 
     <div class="row">
-      <button type="button" id="print" class="primary" disabled>Print / save as PDF</button>
-      <button type="button" id="dl-png" class="primary" disabled>Download PNG</button>
+      <button type="button" id="print" class="primary" data-i18n="print" disabled>Print / save as PDF</button>
+      <button type="button" id="dl-png" class="primary" data-i18n="download_png" disabled>Download PNG</button>
     </div>
   </form>
 
   <section id="result" aria-live="polite">
-    <p id="status" role="status">Loading Python (first visit downloads about 10 MB)…</p>
+    <p id="status" role="status" data-i18n="loading_python">Loading Python (first visit downloads about 10 MB)…</p>
     <div id="output" hidden>
       <section class="card">
         <div class="pair">
@@ -91,40 +97,40 @@
       </section>
 
       <section id="swap-wrap" class="card flush">
-        <button type="button" id="swap-toggle" class="bar" aria-expanded="false" aria-controls="swap">Color swap</button>
+        <button type="button" id="swap-toggle" class="bar" aria-expanded="false" aria-controls="swap" data-i18n="swap">Color swap</button>
         <div id="swap" hidden>
-          <p class="note">Each row is a color found in your image and the bead it was matched to. Click a row to pick a different bead, for example to tell two similar shades apart. Colors already merged by "Merge similar colors" show as one row; lower that slider to separate them.</p>
+          <p class="note" data-i18n="swap_help">Each row is a color found in your image and the bead it was matched to. Click a row to pick a different bead, for example to tell two similar shades apart. Colors already merged by "Merge similar colors" show as one row; lower that slider to separate them.</p>
           <table id="swap-table">
-            <thead><tr><th>Image color</th><th>Bead</th><th class="num">Cells</th></tr></thead>
+            <thead><tr><th data-i18n="swap_h_color">Image color</th><th data-i18n="swap_h_bead">Bead</th><th class="num" data-i18n="swap_h_cells">Cells</th></tr></thead>
             <tbody></tbody>
           </table>
-          <button type="button" id="swap-reset" class="small" disabled>Reset all swaps</button>
+          <button type="button" id="swap-reset" class="small" data-i18n="swap_reset" disabled>Reset all swaps</button>
         </div>
       </section>
 
       <section class="card">
-        <h2>Chart</h2>
+        <h2 data-i18n="chart">Chart</h2>
         <div id="pager" class="pager" hidden>
-          <div class="seg" role="group" aria-label="Chart view">
-            <button type="button" id="view-one" aria-pressed="true">One at a time</button>
-            <button type="button" id="view-all" aria-pressed="false">All</button>
+          <div class="seg" role="group" aria-label="Chart view" data-i18n-attr="aria-label:view_aria">
+            <button type="button" id="view-one" aria-pressed="true" data-i18n="view_one">One at a time</button>
+            <button type="button" id="view-all" aria-pressed="false" data-i18n="view_all">All</button>
           </div>
           <div class="nav" id="nav">
-            <button type="button" id="prev" aria-label="Previous part">‹ Prev</button>
+            <button type="button" id="prev" aria-label="Previous part" data-i18n="prev" data-i18n-attr="aria-label:prev_aria">‹ Prev</button>
             <span id="pos"></span>
-            <button type="button" id="next" aria-label="Next part">Next ›</button>
+            <button type="button" id="next" aria-label="Next part" data-i18n="next" data-i18n-attr="aria-label:next_aria">Next ›</button>
           </div>
         </div>
-        <p class="note hint">Zoom with + and −, Ctrl/⌘ + scroll, or pinch. Drag to move. Double-click to zoom in and out.</p>
+        <p class="note hint" data-i18n="hint">Zoom with + and −, Ctrl/⌘ + scroll, or pinch. Drag to move. Double-click to zoom in and out.</p>
         <div id="tiles"></div>
       </section>
 
       <section class="card">
-        <h2>Beads needed</h2>
+        <h2 data-i18n="beads_needed">Beads needed</h2>
         <table id="legend">
-          <thead><tr><th>Color</th><th>Code</th><th class="num">Count</th></tr></thead>
+          <thead><tr><th data-i18n="th_color">Color</th><th data-i18n="th_code">Code</th><th class="num" data-i18n="th_count">Count</th></tr></thead>
           <tbody></tbody>
-          <tfoot><tr><td colspan="2">Total</td><td class="num" id="total"></td></tr></tfoot>
+          <tfoot><tr><td colspan="2" data-i18n="total">Total</td><td class="num" id="total"></td></tr></tfoot>
         </table>
       </section>
     </div>
@@ -132,11 +138,12 @@
 </main>
 
 <footer>
-  <a href="https://github.com/jenydu/pixel-art-to-beads" aria-label="GitHub repository" title="GitHub repository">
+  <a href="https://github.com/jenydu/pixel-art-to-beads" aria-label="GitHub repository" title="GitHub repository" data-i18n-attr="aria-label:github;title:github">
     <svg viewBox="0 0 16 16" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
   </a>
 </footer>
 
+<script src="i18n.js"></script>
 <script src="viewer.js"></script>
 <script src="app.js"></script>
 </body>

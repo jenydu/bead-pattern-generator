@@ -8,7 +8,8 @@ from xml.sax.saxutils import escape
 import numpy as np
 from PIL import Image
 
-FONT = "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+FONT = ("system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', "
+        "'Noto Sans CJK SC', 'Hiragino Sans GB', Helvetica, Arial, sans-serif")
 GRID_MINOR = "#cdcdcd"
 GRID_MAJOR = "#6e6e6e"
 BOARD_LINE = "#d62839"
@@ -140,8 +141,10 @@ def render_preview(pattern, scale=12):
 
 
 def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=40,
-                 labels="code"):
-    """Printable sheet as SVG: title, whole chart (red lines between boards), bead counts."""
+                 labels="code", subtitle=None):
+    """Printable sheet as SVG: title, whole chart (red lines between boards), bead counts.
+
+    title / subtitle are the finished texts (the page supplies them in the chosen language)."""
     cw, ch, chart = _chart_elements(pattern, 0, 0, None, None, cell, 5, False, board, labels)
     pad = 36
     width = max(cw, 900) + 2 * pad
@@ -166,9 +169,11 @@ def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=40,
     top = head + ch + 30
     height = top + y + chip_h + pad
 
-    sub = f"{pattern.shape[1]} x {pattern.shape[0]} cells"
-    if board:
-        sub += f", red lines every {board} cells (one pegboard)"
+    sub = subtitle
+    if sub is None:
+        sub = f"{pattern.shape[1]} x {pattern.shape[0]} cells"
+        if board:
+            sub += f", red lines every {board} cells (one pegboard)"
     parts = [f'<g font-family="{FONT}">',
              f'<text x="{pad}" y="52" font-size="36" fill="{INK}">{escape(title)}</text>',
              f'<text x="{pad}" y="86" font-size="20" fill="{MUTED}">{escape(sub)}</text>',

@@ -1,5 +1,7 @@
 # Pixel Art to Beads (PA2B)
 
+English | [简体中文](README.zh-CN.md)
+
 A minimalistic bead and cross-stitch pattern generator specialized for pixel art. Supports a variety of brands, including MARD, Perler, DMC, and more.
 
 **[Open the generator](https://jenydu.github.io/pixel-art-to-beads/)**: it runs entirely in your browser, and your image is never uploaded.
@@ -8,7 +10,7 @@ A minimalistic bead and cross-stitch pattern generator specialized for pixel art
 
 Most pattern generators take a photo and shrink it to a grid of beads, which blurs edges and loses detail. This one starts from the other end: your image is already pixel art, so the job is to recover that art exactly.
 
-Pixel art found online rarely arrives clean. It has been scaled up by some odd factor, stretched, saved as a JPEG, blurred by a resize, screenshotted with a frame and drop shadow, or drawn over an editor's grid lines. The generator works out the real pixel grid, looks at the middle of each pixel where the damage is smallest, and puts back one clean color per pixel. Then it matches those colors to the beads or thread you pick. A 32 x 32 sprite saved as a 3200 x 3200 JPEG comes out as the 32 x 32 sprite.
+Pixel art found online rarely arrives clean. It has been scaled up by some odd factor, stretched, saved as a JPEG, blurred by a resize, screenshotted with a frame and drop shadow, or drawn over an editor's grid lines. The generator works out the real pixel grid, looks at the middle of each pixel where the damage is smallest, and puts back one clean color per pixel. Then it matches those colors to the beads or thread you pick. A 32 x 32 sprite saved as a 1080 x 1920 JPEG screenshot comes out as the 32 x 32 sprite.
 
 ## Features
 

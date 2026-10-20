@@ -344,3 +344,18 @@ def test_api_swaps_labels_and_conversions():
     out2 = api.run(buf.getvalue(), brand="perler", labels="symbol", swaps=json.dumps({key: pick}))
     assert next(r for r in out2["conversions"] if r["src"] == row["src"])["ref"] == pick
     assert any(b["symbols"] for b in api.brands())
+
+
+def test_sheet_wording_can_be_translated():
+    import json
+    from core import api
+    buf = io.BytesIO()
+    Image.fromarray(upscale(make_art(20, seed=8), 6)).save(buf, "PNG")
+    zh = {"brand": "MARD 291（完整版）", "title": "{brand} 拼豆图纸：{colors} 种颜色，共 {beads} 颗",
+          "subtitle": "{cols} × {rows} 格", "subtitle_board": "{cols} × {rows} 格，红线表示每 {board} 格一块拼豆板"}
+    sheet = api.run(buf.getvalue(), board=52, texts=json.dumps(zh))["sheet"]
+    ET.fromstring(sheet)
+    assert "MARD 291（完整版） 拼豆图纸：" in sheet and "20 × 20 格，红线表示每 52 格一块拼豆板" in sheet
+    assert "PingFang SC" in sheet                      # a font that can draw the Chinese
+    plain = api.run(buf.getvalue(), board=52)["sheet"]  # default wording unchanged
+    assert "bead pattern:" in plain and "red lines every 52 cells" in plain

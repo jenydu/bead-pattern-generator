@@ -49,12 +49,12 @@ const blobUrl = (data, type) => {
 async function refresh() {
   if (!imageBytes) return;
   if (!$("brand").value) {   // Python is still loading; the startup code calls refresh() again
-    setStatus("Loading Python (first visit downloads about 10 MB)…", "loading");
+    setStatus(t("loading_python"), "loading");
     return;
   }
   const token = ++runToken;
   if (!$("output").hidden) $("output").classList.add("busy");   // keep the old chart, dimmed
-  setStatus("Working…", "loading");
+  setStatus(t("working"), "loading");
   try {
     const r = await call({
       type: "run",
@@ -68,6 +68,12 @@ async function refresh() {
       clean: $("clean").checked,
       labels: $("labels").value,
       swaps: JSON.stringify(swaps),
+      texts: JSON.stringify({   // wording of the downloaded sheet, which Python draws
+        brand: brandLabel($("brand").value),
+        title: t("sheet_title"),
+        subtitle: t("sheet_size"),
+        subtitle_board: t("sheet_size_board"),
+      }),
     });
     if (token !== runToken) return;
     show(r);
@@ -75,7 +81,7 @@ async function refresh() {
   } catch (err) {
     if (token === runToken) {
       $("output").hidden = true;
-      setStatus("Could not process this image: " + err.message, "error");
+      setStatus(t("err_process") + err.message, "error");
     }
   } finally {
     if (token === runToken) $("output").classList.remove("busy");
@@ -114,15 +120,12 @@ $("use-detected").addEventListener("click", () => {
 });
 
 function describeGrid(r) {
-  const g = r.grid;
-  if (g.manual) return `Using your custom grid, ${g.nx} × ${g.ny}.`;
-  if (r.kind === "photo") {
-    return `No pixel grid found, so this is treated as a regular picture and shrunk to ${g.detected[0]} × ${g.detected[1]}. Set another size under Custom.`;
-  }
-  if (r.kind === "pixels") return `Already one pixel per bead (${g.detected[0]} × ${g.detected[1]}). If it is scaled up, enter the size under Custom.`;
-  const trimmed = g.nx !== g.detected[0] || g.ny !== g.detected[1]
-    ? ` The empty background is cropped, leaving ${g.nx} × ${g.ny}.` : "";
-  return `Using the detected grid: each pixel is about ${g.period.toFixed(2)} px wide in the image.${trimmed}`;
+  const g = r.grid, [dx, dy] = g.detected;
+  if (g.manual) return t("g_custom_used", { nx: g.nx, ny: g.ny });
+  if (r.kind === "photo") return t("g_photo", { dx, dy });
+  if (r.kind === "pixels") return t("g_pixels", { dx, dy });
+  const cropped = g.nx !== dx || g.ny !== dy ? t("g_cropped", { nx: g.nx, ny: g.ny }) : "";
+  return t("g_detected_used", { p: g.period.toFixed(2), cropped });
 }
 
 // ---- chart: one zoomable viewer per part, shown one at a time or all ---------------------
@@ -130,6 +133,7 @@ function describeGrid(r) {
 let viewers = [];
 let figures = [];
 let captions = [];
+let positions = [];
 let active = 0;
 let viewAll = false;
 
@@ -138,21 +142,24 @@ function buildTiles(r) {
   tiles.replaceChildren();
   viewers = [];
   figures = [];
-  captions = r.tiles.map((t, i) => {
-    const [x0, y0, x1, y1] = t.box;
-    const range = `columns ${x0 + 1}–${x1}, rows ${y0 + 1}–${y1}`;
-    if (r.tiles.length === 1) return "";   // nothing to number
-    return t.board
-      ? `Board ${i + 1} of ${r.tiles.length} (board row ${t.board[0]}, column ${t.board[1]}) · ${range}`
-      : r.tiles.length > 1 ? `Part ${i + 1} of ${r.tiles.length} · ${range}` : "";
+  const n = r.tiles.length;
+  positions = r.tiles.map((tile, i) =>
+    n < 2 ? "" : tile.board ? t("pos_board", { i: i + 1, n }) : t("pos_part", { i: i + 1, n }));
+  captions = r.tiles.map((tile, i) => {
+    if (n < 2) return "";   // nothing to number
+    const [x0, y0, x1, y1] = tile.box;
+    const range = { c0: x0 + 1, c1: x1, r0: y0 + 1, r1: y1 };
+    return tile.board
+      ? t("cap_board", { i: i + 1, n, r: tile.board[0], c: tile.board[1], ...range })
+      : t("cap_part", { i: i + 1, n, ...range });
   });
-  r.tiles.forEach((t, i) => {
+  r.tiles.forEach((tile, i) => {
     const fig = document.createElement("figure");
     fig.className = "tile";
     fig.style.margin = "0 0 1.5rem";
     const cap = document.createElement("figcaption");
     cap.textContent = captions[i];
-    const v = new Viewer(blobUrl(t.svg, "image/svg+xml"), { onKey: (d) => go(active + d) });
+    const v = new Viewer(blobUrl(tile.svg, "image/svg+xml"), { onKey: (d) => go(active + d) });
     fig.append(cap, v.el);
     tiles.append(fig);
     viewers.push(v);
@@ -176,7 +183,7 @@ function updateView() {
   $("view-one").setAttribute("aria-pressed", String(!viewAll));
   $("view-all").setAttribute("aria-pressed", String(viewAll));
   $("nav").hidden = viewAll;
-  $("pos").textContent = captions[active]?.split(" (")[0].split(" · ")[0] ?? "";
+  $("pos").textContent = positions[active] ?? "";
   $("prev").disabled = active === 0;
   $("next").disabled = active === n - 1;
   figures.forEach((f, i) => f.classList.toggle("active", i === active));
@@ -195,7 +202,7 @@ function clearResult() {
   $("output").hidden = true;
   $("output").classList.remove("busy");
   $("tiles").replaceChildren();
-  viewers = []; figures = []; captions = []; active = 0;
+  viewers = []; figures = []; captions = []; positions = []; active = 0;
   for (const id of ["orig", "preview"]) $(id).removeAttribute("src");
   $("legend").tBodies[0].replaceChildren();
   $("swap-table").tBodies[0].replaceChildren();
@@ -218,7 +225,7 @@ function show(r) {
 
   $("gridbox").hidden = false;
   $("d-original").textContent = `${r.original[0]} × ${r.original[1]} px`;
-  $("d-current").textContent = `${g.nx} × ${g.ny} cells`;
+  $("d-current").textContent = t("cells_n", { nx: g.nx, ny: g.ny });
   $("d-detected").textContent = `${detected[0]} × ${detected[1]}`;
   $("use-detected").disabled = false;
   $("cx").disabled = $("cy").disabled = false;
@@ -226,9 +233,11 @@ function show(r) {
 
   $("orig").src = originalUrl;
   $("preview").src = blobUrl(r.preview, "image/png");
-  $("cap-orig").textContent = `Original, ${r.original[0]} × ${r.original[1]} px`;
-  $("cap-preview").textContent = `Pattern, ${g.nx} × ${g.ny}`;
-  $("summary").textContent = `${g.nx} × ${g.ny}, ${r.legend.length} colors, ${r.total} beads.`;
+  $("cap-orig").textContent = t("cap_original", { w: r.original[0], h: r.original[1] });
+  $("cap-preview").textContent = t("cap_pattern", { nx: g.nx, ny: g.ny });
+  $("orig").alt = t("alt_original");
+  $("preview").alt = t("alt_preview");
+  $("summary").textContent = t("summary", { nx: g.nx, ny: g.ny, colors: r.legend.length, beads: r.total });
 
   buildTiles(r);
 
@@ -284,6 +293,7 @@ function renderSwap() {
   const r = lastResult;
   $("swap").hidden = !swapOpen;
   $("swap-toggle").setAttribute("aria-expanded", String(swapOpen));
+  $("swap-toggle").dataset.state = t(swapOpen ? "hide" : "show");
   $("swap-reset").disabled = Object.keys(swaps).length === 0;
   const body = $("swap-table").tBodies[0];
   body.replaceChildren();
@@ -302,7 +312,7 @@ function renderSwap() {
     a.append(swatch(row.src), ` #${hex}`);
     const b = tr.insertCell();
     b.append(swatch(palRgb[row.ref]), ` ${row.ref}`);
-    if (row.swapped) b.append(" (swapped)");
+    if (row.swapped) b.append(t("swap_swapped"));
     const n = tr.insertCell();
     n.className = "num";
     n.textContent = row.count;
@@ -314,7 +324,7 @@ function renderSwap() {
     cell.colSpan = 3;
     const intro = document.createElement("p");
     intro.className = "note";
-    intro.textContent = `Replace ${row.ref} for this image color. Closest first; the number is the color difference (lower is closer).`;
+    intro.textContent = t("swap_replace", { ref: row.ref });
     cell.append(intro);
     const list = document.createElement("div");
     list.className = "cands";
@@ -328,15 +338,15 @@ function renderSwap() {
     }
     cell.append(list);
     const any = document.createElement("select");
-    any.setAttribute("aria-label", "Any color");
-    any.add(new Option("Any other color…", ""));
+    any.setAttribute("aria-label", t("swap_any_aria"));
+    any.add(new Option(t("swap_any"), ""));
     for (const p of r.palette) any.add(new Option(p.ref, p.ref));
     any.addEventListener("change", () => { if (any.value) applySwap(hex, any.value, row.auto); });
     cell.append(any);
     if (row.swapped) {
       const undo = document.createElement("button");
       undo.type = "button";
-      undo.textContent = `Back to automatic (${row.auto})`;
+      undo.textContent = t("swap_back", { ref: row.auto });
       undo.addEventListener("click", () => applySwap(hex, row.auto, row.auto));
       cell.append(undo);
     }
@@ -431,21 +441,41 @@ $("tol").addEventListener("input", () => {
   schedule();
 });
 
-setStatus("Loading Python (first visit downloads about 10 MB)…", "loading");
+// ---- language ---------------------------------------------------------------------------
+
+const brandLabel = (key) =>
+  I18N[lang]["brand_" + key] ?? I18N.en["brand_" + key] ?? brandInfo[key]?.label ?? key;
+
+function relabelBrands() {
+  for (const opt of $("brand").options) opt.textContent = brandLabel(opt.value);
+}
+
+$("lang").addEventListener("change", () => {
+  setLang($("lang").value);
+  relabelBrands();
+  const s = $("status");
+  if (!s.hidden && !s.classList.contains("error") && !imageBytes) setStatus(t($("brand").disabled ? "loading_python" : "choose_image"), $("brand").disabled ? "loading" : "");
+  if (imageBytes) refresh();   // redraw the captions, the legend and the downloadable sheet
+});
+
+initLang();
+$("lang").value = lang;
+applyStatic();
+setStatus(t("loading_python"), "loading");
 (async () => {
   try {
     const brands = await call({ type: "brands" });
     const sel = $("brand");
     for (const b of brands) {
-      sel.add(new Option(b.label, b.key));
       brandInfo[b.key] = b;
+      sel.add(new Option(brandLabel(b.key), b.key));
     }
     sel.disabled = false;
     $("file").disabled = false;
     applyBrandDefaults();
-    setStatus("Choose an image to begin.");
+    setStatus(t("choose_image"));
     if (imageBytes) refresh();
   } catch (err) {
-    setStatus("Could not start Python: " + err.message, "error");
+    setStatus(t("err_start") + err.message, "error");
   }
 })();
