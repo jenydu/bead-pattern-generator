@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const worker = new Worker("worker.js");
+const worker = new Worker("worker.js?v=44a439b1");
 
 let nextId = 1;
 const pending = new Map();

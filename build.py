@@ -1,5 +1,6 @@
 """Sync brand palettes from beadcolors and stage core/ + data/ into web/py for Pages."""
 import csv
+import hashlib
 import json
 import re
 import shutil
@@ -64,6 +65,29 @@ def sync_palettes():
         shutil.copy2(lic, DST / "LICENSE-beadcolors")
 
 
+def stamp_assets(web=None):
+    """Version the page's own files (style.css?v=1a2b3c4d ...) so a browser never pairs a new
+    index.html with a cached old stylesheet or script: GitHub Pages lets browsers reuse files
+    for ten minutes, and the page breaks when the pieces come from different deploys.
+    The version is a hash of the file's content, so it only changes when the file does."""
+    web = Path(web or ROOT / "web")
+
+    def digest(name):
+        return hashlib.sha1((web / name).read_bytes()).hexdigest()[:8]
+
+    def rewrite(path, pattern, repl):
+        text = path.read_text(encoding="utf-8")
+        new = re.sub(pattern, repl, text)
+        if new != text:
+            path.write_text(new, encoding="utf-8")
+
+    # app.js names the worker, so stamp that first; index.html names the rest
+    rewrite(web / "app.js", r'new Worker\("worker\.js(\?v=\w+)?"\)',
+            f'new Worker("worker.js?v={digest("worker.js")}")')
+    for name in ("style.css", "i18n.js", "viewer.js", "app.js"):
+        rewrite(web / "index.html", rf'{re.escape(name)}(\?v=\w+)?"', f'{name}?v={digest(name)}"')
+
+
 def stage_web():
     """web/py mirrors the layout core/ expects: core/*.py and data/palettes/*.csv."""
     if WEB_PY.exists():
@@ -78,5 +102,6 @@ def stage_web():
 if __name__ == "__main__":
     if "--no-sync" not in sys.argv:
         sync_palettes()
+    stamp_assets()
     stage_web()
     print("ok:", len(list(DST.glob("*.csv"))), "palettes")

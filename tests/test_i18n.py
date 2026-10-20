@@ -36,3 +36,23 @@ def test_every_key_used_in_the_page_exists():
         used |= set(re.findall(r';(?:\w[\w-]*):(\w+)"', text))
     missing = {k for k in used if k not in d["en"] and not k.startswith("brand_")}
     assert not missing, missing
+
+
+def test_build_versions_the_page_files(tmp_path):
+    import shutil
+    import sys
+    sys.path.insert(0, str(WEB.parent))
+    import build
+
+    web = tmp_path / "web"
+    shutil.copytree(WEB, web, ignore=shutil.ignore_patterns("py"))
+    build.stamp_assets(web)
+    html = (web / "index.html").read_text(encoding="utf-8")
+    first = re.findall(r'(style\.css|app\.js|i18n\.js|viewer\.js)\?v=(\w{8})"', html)
+    assert {n for n, _ in first} == {"style.css", "app.js", "i18n.js", "viewer.js"}
+    assert re.search(r'new Worker\("worker\.js\?v=\w{8}"\)', (web / "app.js").read_text(encoding="utf-8"))
+    build.stamp_assets(web)                                  # running again changes nothing
+    assert (web / "index.html").read_text(encoding="utf-8") == html
+    (web / "style.css").write_text("/* changed */", encoding="utf-8")
+    build.stamp_assets(web)                                  # a changed file gets a new version
+    assert (web / "index.html").read_text(encoding="utf-8") != html
