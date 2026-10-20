@@ -90,7 +90,8 @@ async function refresh() {
 
 // ---- pixel grid panel ----
 
-const ratio = () => (detected ? detected[1] / detected[0] : 1);   // rows per column
+let lockRatio = null;   // rows per column fixed when the lock was switched on; null = the detected ratio
+const ratio = () => lockRatio ?? (detected ? detected[1] / detected[0] : 1);
 
 function setCustomInputs(cols, rows) {
   $("cx").value = cols;
@@ -113,9 +114,10 @@ $("cy").addEventListener("input", () => {
   const cols = locked() ? (r > 0 ? colsFor(r) : "") : $("cx").value;
   setCustomInputs(cols, r > 0 ? r : "");
 });
+// Locking keeps the proportions the boxes have at that moment, not the detected ones.
 $("lock").addEventListener("change", () => {
-  const c = parseInt($("cx").value, 10);
-  if (locked() && c > 0) setCustomInputs(c, rowsFor(c));   // snap back to the proportions
+  const c = parseInt($("cx").value, 10), r = parseInt($("cy").value, 10);
+  lockRatio = locked() && c > 0 && r > 0 ? r / c : null;
 });
 $("use-custom").addEventListener("click", () => {
   const c = parseInt($("cx").value, 10), r = parseInt($("cy").value, 10);
@@ -126,6 +128,7 @@ $("use-custom").addEventListener("click", () => {
 });
 $("use-detected").addEventListener("click", () => {
   custom = null;
+  lockRatio = null;
   if (detected) setCustomInputs(detected[0], detected[1]);
   refresh();
 });
@@ -423,6 +426,7 @@ $("file").addEventListener("change", async (e) => {
   if (originalUrl) URL.revokeObjectURL(originalUrl);
   originalUrl = URL.createObjectURL(f);
   custom = null;
+  lockRatio = null;
   detected = null;
   swaps = {};
   openRow = null;
@@ -444,6 +448,7 @@ $("board").addEventListener("input", schedule);
 $("order").addEventListener("change", schedule);
 $("clean").addEventListener("change", () => {
   custom = null;   // the trimmed art changes, so a custom size no longer means the same thing
+  lockRatio = null;
   detected = null;
   schedule();
 });
