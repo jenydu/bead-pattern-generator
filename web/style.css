@@ -31,6 +31,8 @@ header p { grid-column: 1 / -1; }
 #lang button[aria-pressed=true] { background: none; color: var(--ink); font-weight: 650; text-decoration: none; cursor: default; }
 h1 { font-size: 1.5rem; margin: 0 0 .15rem; font-weight: 650; letter-spacing: -.01em; }
 header p { margin: 0; color: var(--muted); }
+header p.noai { margin-top: .15rem; }
+header p.noai strong { color: var(--ink); font-weight: 650; }
 h2 { font-size: 1.05rem; margin: 0 0 .75rem; font-weight: 650; }
 a { color: var(--blue-strong); }
 :focus-visible { outline: 2px solid var(--blue-strong); outline-offset: 2px; }
