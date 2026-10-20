@@ -450,17 +450,31 @@ function relabelBrands() {
   for (const opt of $("brand").options) opt.textContent = brandLabel(opt.value);
 }
 
-$("lang").addEventListener("change", () => {
-  setLang($("lang").value);
+function markLanguage() {
+  for (const b of document.querySelectorAll("#lang button")) {
+    b.setAttribute("aria-pressed", String(b.dataset.lang === lang));
+  }
+}
+
+function changeLanguage(l) {
+  if (l === lang) return;
+  setLang(l);
+  markLanguage();
   relabelBrands();
   const s = $("status");
-  if (!s.hidden && !s.classList.contains("error") && !imageBytes) setStatus(t($("brand").disabled ? "loading_python" : "choose_image"), $("brand").disabled ? "loading" : "");
+  if (!imageBytes && !s.hidden && !s.classList.contains("error")) {
+    setStatus($("brand").disabled ? t("loading_python") : t("choose_image"), $("brand").disabled ? "loading" : "");
+  }
   if (imageBytes) refresh();   // redraw the captions, the legend and the downloadable sheet
-});
+}
+
+for (const b of document.querySelectorAll("#lang button")) {
+  b.addEventListener("click", () => changeLanguage(b.dataset.lang));
+}
 
 initLang();
-$("lang").value = lang;
 applyStatic();
+markLanguage();
 setStatus(t("loading_python"), "loading");
 (async () => {
   try {
