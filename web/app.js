@@ -219,7 +219,7 @@ function clearResult() {
   for (const id of ["orig", "preview"]) $(id).removeAttribute("src");
   $("legend").tBodies[0].replaceChildren();
   $("swap-table").tBodies[0].replaceChildren();
-  $("open-png").disabled = $("open-pdf").disabled = true;
+  $("save-png").disabled = $("save-pdf").disabled = true;
   urls.forEach(URL.revokeObjectURL);
   urls = [];
   lastResult = null;
@@ -275,7 +275,7 @@ function show(r) {
   lastResult = r;
   renderSwap();
   preparePng();
-  $("open-png").disabled = $("open-pdf").disabled = false;
+  $("save-png").disabled = $("save-pdf").disabled = false;
   $("output").hidden = false;
 }
 
@@ -368,7 +368,7 @@ function renderSwap() {
 $("swap-toggle").addEventListener("click", () => { swapOpen = !swapOpen; renderSwap(); });
 $("swap-reset").addEventListener("click", () => { swaps = {}; openRow = null; refresh(); });
 
-// ---- outputs: a PNG and a PDF, each opened in a new tab to be saved from there ----
+// ---- outputs: the PNG opens in a new tab to be saved; the PDF goes through the print dialog ----
 
 const outputName = () => `${$("brand").value}_${fileStem || "pattern"}`;
 
@@ -407,82 +407,22 @@ async function makePng(svg) {
   return null;
 }
 
-async function canvasToPdfImage(canvas) {
-  const { width: w, height: h } = canvas;
-  if (typeof CompressionStream === "function") {   // lossless: raw RGB, deflated
-    const rgba = canvas.getContext("2d").getImageData(0, 0, w, h).data;
-    const rgb = new Uint8Array(w * h * 3);
-    for (let i = 0, j = 0; i < rgba.length; i += 4) {
-      rgb[j++] = rgba[i]; rgb[j++] = rgba[i + 1]; rgb[j++] = rgba[i + 2];
-    }
-    const packed = new Blob([rgb]).stream().pipeThrough(new CompressionStream("deflate"));
-    return { w, h, filter: "/FlateDecode", data: new Uint8Array(await new Response(packed).arrayBuffer()) };
+// The PNG is made once per result, shortly after it appears, so a click finds it ready.
+let pngJob = { result: null };
+function pngFor(result) {
+  if (pngJob.result !== result) {
+    pngJob = { result, made: makePng(result.sheet).then((blob) => blob && URL.createObjectURL(blob)) };
   }
-  const jpg = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
-  return { w, h, filter: "/DCTDecode", data: new Uint8Array(await jpg.arrayBuffer()) };
-}
-
-// A PDF with one image per page, each fitted to an A4 page (landscape if the image is wide).
-function buildPdf(images, title) {
-  const enc = new TextEncoder();
-  const chunks = [], offsets = [];
-  let length = 0;
-  const put = (x) => {
-    const bytes = typeof x === "string" ? enc.encode(x) : x;
-    chunks.push(bytes);
-    length += bytes.length;
-  };
-  const obj = (n, dict, stream) => {
-    offsets[n] = length;
-    put(`${n} 0 obj\n${dict}\n`);
-    if (stream) { put("stream\n"); put(stream); put("\nendstream\n"); }
-    put("endobj\n");
-  };
-  put("%PDF-1.4\n");
-  obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
-  obj(2, `<< /Type /Pages /Kids [${images.map((_, i) => `${4 + 3 * i} 0 R`).join(" ")}] /Count ${images.length} >>`);
-  obj(3, `<< /Title (${title.replace(/[\\()]/g, "")}) >>`);
-  images.forEach((im, i) => {
-    const [pw, ph] = im.w > im.h * 1.1 ? [841.89, 595.28] : [595.28, 841.89];
-    const margin = 28, s = Math.min((pw - 2 * margin) / im.w, (ph - 2 * margin) / im.h);
-    const dw = im.w * s, dh = im.h * s;
-    const content = enc.encode(`q ${dw.toFixed(2)} 0 0 ${dh.toFixed(2)} ${((pw - dw) / 2).toFixed(2)} ${(ph - margin - dh).toFixed(2)} cm /Im0 Do Q`);
-    obj(4 + 3 * i, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 ${6 + 3 * i} 0 R >> >> /Contents ${5 + 3 * i} 0 R >>`);
-    obj(5 + 3 * i, `<< /Length ${content.length} >>`, content);
-    obj(6 + 3 * i, `<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter ${im.filter} /Length ${im.data.length} >>`, im.data);
-  });
-  const count = 3 + 3 * images.length, xref = length;
-  put(`xref\n0 ${count + 1}\n0000000000 65535 f \n`
-    + offsets.slice(1).map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join(""));
-  put(`trailer\n<< /Size ${count + 1} /Root 1 0 R /Info 3 0 R >>\nstartxref\n${xref}\n%%EOF`);
-  return new Blob(chunks, { type: "application/pdf" });
-}
-
-// The sheet (whole chart and bead counts), then one page per pegboard if there are several.
-async function makePdf(result) {
-  const pages = [result.sheet];
-  if (result.tiles.length > 1) pages.push(...result.tiles.map((tile) => tile.svg));
-  const images = [];
-  for (const svg of pages) images.push(await canvasToPdfImage(await svgToCanvas(svg, 3, 6e6)));
-  return buildPdf(images, outputName());
-}
-
-// Each output is made once per result; the PNG is prepared shortly after the result appears.
-let jobs = { result: null };
-function job(kind) {
-  if (jobs.result !== lastResult) jobs = { result: lastResult };
-  jobs[kind] ??= (kind === "png" ? makePng(lastResult.sheet) : makePdf(lastResult))
-    .then((blob) => blob && { blob, url: URL.createObjectURL(blob) });
-  return jobs[kind];
+  return pngJob.made;
 }
 let prepareTimer = null;
 function preparePng() {
   clearTimeout(prepareTimer);
-  prepareTimer = setTimeout(() => { if (lastResult) job("png"); }, 800);
+  prepareTimer = setTimeout(() => { if (lastResult) pngFor(lastResult); }, 800);
 }
 
 // The tab is opened inside the click, which browsers require, and filled in once the file exists.
-async function openInTab(kind) {
+$("save-png").addEventListener("click", async () => {
   const tab = window.open("", "_blank");
   if (!tab) {
     setStatus(t("err_popup"), "error");
@@ -491,17 +431,22 @@ async function openInTab(kind) {
   tab.document.title = outputName();
   tab.document.body.textContent = t("working");
   try {
-    const made = await job(kind);
-    if (!made) throw new Error("no file");
-    tab.location.href = made.url;
+    const url = await pngFor(lastResult);
+    if (!url) throw new Error("no file");
+    tab.location.href = url;
   } catch (err) {
     tab.close();
     setStatus(t("err_file"), "error");
   }
-}
+});
 
-$("open-png").addEventListener("click", () => openInTab("png"));
-$("open-pdf").addEventListener("click", () => openInTab("pdf"));
+// "Save as PDF" in the print dialog proposes the page title as the file name.
+$("save-pdf").addEventListener("click", () => {
+  const title = document.title;
+  document.title = outputName();
+  window.addEventListener("afterprint", () => { document.title = title; }, { once: true });
+  window.print();
+});
 
 // ---- wiring ----
 

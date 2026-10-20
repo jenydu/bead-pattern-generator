@@ -89,11 +89,11 @@ into boards numbered from 1, with red board lines on the full sheet.
 - `viewer.js` shows each chart part fitted to its box, with zoom (buttons, Ctrl/Cmd + wheel,
   pinch), drag to pan and double-click to toggle. Several boards are shown one at a time with
   Prev / Next, or all at once.
-- Outputs: "Save PNG" / "Save PDF" open a new tab (inside the click, as browsers require) and
-  fill it once the file exists; the user saves it from there. Both rasterize the SVGs on a
-  canvas (capped at 12M pixels, since iOS Safari cannot go much higher). The PDF is written by a
-  small builder in `app.js`: one deflated RGB image per A4 page, the sheet first and then one
-  page per board.
+- Outputs: "Save PNG" opens a new tab (inside the click, as browsers require) and fills it with
+  the sheet rasterized on a canvas (capped at 12M pixels, since iOS Safari cannot go much
+  higher); the user saves it from there. "Save PDF" opens the print dialog (the page title
+  becomes the suggested file name); the print stylesheet shows only the chart parts, one per
+  page, and the bead list. Charts are SVG, so they stay sharp in print.
 - `i18n.js` holds the English and Simplified Chinese text (`t(key, values)`; `{name}` marks a
   filled-in value; `data-i18n` marks static HTML). The language is remembered in `localStorage`.
   Python never knows the language: the page passes the wording of the saved sheet to
