@@ -56,7 +56,7 @@ Pixel art found online rarely arrives clean. It has been scaled up by some odd f
 | Yant | 119 | Y002 | beadcolors |
 | DMC (cross-stitch thread) | 454 | 310, 3865, B5200 | [threadcolors.com](https://threadcolors.com/), scraped by `tools/scrape_threadcolors.py` |
 
-The bead colors come from [beadcolors](https://github.com/maxcleme/beadcolors), a community-maintained collection (MIT licensed; the contributors are credited in `data/palettes/*.csv`). `build.py` copies it into `data/palettes/`. The beadcolors repo also lists Diamond Dotz, which is copied but not offered, since those are not fuse beads.
+The bead colors come from [beadcolors](https://github.com/maxcleme/beadcolors), a community-maintained collection (MIT licensed; the contributors are credited in `data/palettes/*.csv`). `build.py` copies it into `data/palettes/`.
 
 All colors are on-screen approximations. Real beads and thread vary with the batch, and so does how they look under different light, so check a swatch before a big project.
 

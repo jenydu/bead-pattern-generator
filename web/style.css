@@ -85,6 +85,8 @@ button.small { min-height: 36px; padding: .2rem .6rem; font-size: .92rem; margin
 .gridrows input { width: 3.1rem; min-height: 36px; margin: 0; padding: .2rem .3rem; text-align: center; }
 .gridrows button { width: 100%; white-space: nowrap; }
 
+label.lock { margin: .2rem 0 .4rem; font-size: .92rem; }
+
 /* ---- results ---- */
 #result { margin-top: 1.25rem; }
 #status { margin: 0; }

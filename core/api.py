@@ -1,7 +1,7 @@
 """Entry points for the web page (called from JS through Pyodide). Plain Python otherwise."""
 import hashlib
-import json
 import io
+import json
 
 import numpy as np
 from PIL import Image
@@ -42,7 +42,7 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
 
     cells_x / cells_y > 0 replaces the detected grid (relative to the trimmed art).
     board > 0 splits the chart into pegboards of board x board cells.
-    order: "code" | "group" | "count" for the bead list. Returns plain dict/list/str/bytes."""
+    order: "code" or "count" for the bead list. Returns plain dict/list/str/bytes."""
     data = data.to_py().tobytes() if hasattr(data, "to_py") else bytes(data)
     prep = _prepare(data, bool(clean_edges))
     if brand not in BRANDS:
@@ -70,15 +70,14 @@ def run(data, brand="mard_291", cells_x=0, cells_y=0, tolerance=6.0, board=0,
     return {
         "kind": prep.kind,
         "original": list(prep.original_size),
-        "trimmed": [prep.rgba.shape[1], prep.rgba.shape[0]],
         "grid": {"nx": nx, "ny": ny, "period": float(g.period_x),
-                 "confidence": float(g.confidence), "manual": int(cells_x) > 0 and int(cells_y) > 0,
+                 "manual": int(cells_x) > 0 and int(cells_y) > 0,
                  "detected": [int(g.nx), int(g.ny)]},
         "legend": legend,
         "total": total,
         "preview": render_preview(pattern, scale=max(1, min(16, 384 // max(nx, ny)))),
-        "sheet": render_sheet(pattern, legend, title, board=board, show_groups=order == "group",
-                              labels=labels, subtitle=subtitle),
+        "sheet": render_sheet(pattern, legend, title, board=board, labels=labels,
+                              subtitle=subtitle),
         "conversions": pattern.conversions(),
         "palette": [{"ref": r, "rgb": c.tolist()} for r, c in zip(palette.refs, palette.rgb)],
         "tiles": tiles,

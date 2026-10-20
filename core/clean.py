@@ -1,20 +1,18 @@
-"""Turn an image + detected grid into one color per pixel-art cell."""
+"""Turn an image and its grid into one color per cell, and strip borders and backgrounds."""
 import numpy as np
 
 from .palette import rgb_to_lab
+
+ALPHA_CUTOFF = 128  # alpha below this means no bead
 
 
 def sample_cells(arr, grid, window=0.5, reduce="median"):
     """One color per cell -> (ny, nx, 4) uint8.
 
-    Pixel art: the median of the central `window` fraction of the cell. The borders are where
-    blur and resampling artifacts live, so they are ignored. For a photo (window=1,
-    reduce="mean") the whole cell is averaged, which is what shrinking a picture means.
-    A 1:1 grid (period 1) simply returns the image."""
+    Pixel art: the median of the central `window` fraction of the cell, since blur and
+    resampling damage sits at the borders. A photo (window=1, reduce="mean") is averaged."""
     stat = np.median if reduce == "median" else np.mean
     arr = np.asarray(arr)
-    if arr.ndim == 2:
-        arr = np.stack([arr] * 3, axis=-1)
     if arr.shape[2] == 3:
         arr = np.concatenate([arr, np.full(arr.shape[:2] + (1,), 255, arr.dtype)], axis=2)
     h, w = arr.shape[:2]
@@ -37,14 +35,14 @@ def _span(a, b, window, limit):
     return i0, i1
 
 
-def unify_colors(rgba, tolerance=6.0, alpha_cutoff=128):
-    """Merge near-identical colors (left over from blur / JPEG) into the most common one.
+def unify_colors(rgba, tolerance=6.0):
+    """Merge near-identical colors (left by blur / JPEG) into the most common one.
 
-    Greedy: colors are visited by popularity; each joins the first kept color within
-    `tolerance` (CIE76 distance in Lab), otherwise becomes a new kept color."""
+    Colors are visited most common first; each joins the first kept color within
+    `tolerance` (Lab distance), otherwise it is kept."""
     rgba = np.asarray(rgba)
     out = rgba.copy()
-    solid = rgba[..., 3] >= alpha_cutoff
+    solid = rgba[..., 3] >= ALPHA_CUTOFF
     if not solid.any():
         return out
     colors, inv, counts = np.unique(rgba[solid][:, :3], axis=0, return_inverse=True,
@@ -59,27 +57,23 @@ def unify_colors(rgba, tolerance=6.0, alpha_cutoff=128):
         else:
             kept.append(i)
             target[i] = i
-    rgb = out[..., :3]
-    rgb[solid] = colors[target[inv.reshape(-1)]]
-    out[..., :3] = rgb
+    out[..., :3][solid] = colors[target[inv.reshape(-1)]]
     return out
 
 
-def transparent_mask(rgba, alpha_cutoff=128):
-    return np.asarray(rgba)[..., 3] < alpha_cutoff
+def transparent_mask(rgba):
+    return np.asarray(rgba)[..., 3] < ALPHA_CUTOFF
 
-
-# --- borders and backgrounds -------------------------------------------------------------
 
 _SAMPLES = 512  # pixels per line used to judge whether a row/column is plain
 
 
 def _plain_lines(rgb, axis, tol=75, frac=0.98, min_light=150):
-    """Bool per row (axis=0) or column (axis=1): one light, near-uniform color across it.
+    """Bool per row (axis=0) or column (axis=1): a light, near-uniform line.
 
-    Light so that a dark ring that is part of the art is never mistaken for a frame;
-    near-uniform (within `tol` summed RGB of the median, for `frac` of the pixels) so that
-    JPEG noise and faint grid lines don't count as content."""
+    Light, so a dark ring that is part of the art is never taken for a frame; near-uniform
+    (within `tol` summed RGB of the median for `frac` of its pixels), so JPEG noise and faint
+    grid lines don't count as content."""
     other = 1 - axis
     n = rgb.shape[other]
     if n > _SAMPLES:
@@ -99,11 +93,10 @@ def _over_white(rgba):
 
 
 def trim_border(rgba):
-    """Crop away plain light margins: white canvas, screenshot frame, drop shadow.
+    """Crop plain light margins (white canvas, screenshot frame, drop shadow).
 
-    Repeats on all four sides because a frame only becomes a plain row once the frame on
-    the other axis is gone. Returns (cropped, (x0, y0, x1, y1)); the input if nothing
-    is left to keep."""
+    Repeats on all sides, since a frame only turns into plain rows once the frame across
+    the other axis is gone. Returns (cropped, (x0, y0, x1, y1))."""
     rgba = np.asarray(rgba)
     rgb = _over_white(rgba)
     y0, y1, x0, x1 = 0, rgb.shape[0], 0, rgb.shape[1]
@@ -122,15 +115,15 @@ def trim_border(rgba):
     return rgba[y0:y1, x0:x1], (x0, y0, x1, y1)
 
 
-def clear_background(rgba, min_lightness=92.0, max_chroma=8.0, alpha_cutoff=128):
-    """Make cells empty that are transparent or near-white AND connected to the outside.
+def clear_background(rgba, min_lightness=92.0, max_chroma=8.0):
+    """Empty the transparent or near-white cells that connect to the outside.
 
-    White inside an outline (a face, a highlight) stays, because it is not reachable from
-    the edge through other white cells (4-neighbour flood fill)."""
+    White inside an outline (a face, a highlight) stays: a 4-neighbour flood fill from the
+    edge cannot reach it."""
     rgba = np.asarray(rgba).copy()
     lab = rgb_to_lab(rgba[..., :3])
     chroma = np.hypot(lab[..., 1], lab[..., 2])
-    bg = (rgba[..., 3] < alpha_cutoff) | ((lab[..., 0] >= min_lightness) & (chroma <= max_chroma))
+    bg = (rgba[..., 3] < ALPHA_CUTOFF) | ((lab[..., 0] >= min_lightness) & (chroma <= max_chroma))
     ny, nx = bg.shape
     reach = np.zeros_like(bg)
     stack = [(y, x) for y in range(ny) for x in (0, nx - 1)] + \
@@ -144,9 +137,9 @@ def clear_background(rgba, min_lightness=92.0, max_chroma=8.0, alpha_cutoff=128)
     return rgba
 
 
-def crop_to_content(rgba, alpha_cutoff=128):
-    """Drop empty outer rows and columns. Unchanged if everything is empty."""
-    solid = np.asarray(rgba)[..., 3] >= alpha_cutoff
+def crop_to_content(rgba):
+    """Drop empty outer rows and columns."""
+    solid = np.asarray(rgba)[..., 3] >= ALPHA_CUTOFF
     if not solid.any():
         return rgba
     ys, xs = np.nonzero(solid)

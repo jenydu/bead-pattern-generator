@@ -137,9 +137,9 @@ def test_render_chart_is_vector_svg():
 
 def test_sheet_lists_counts_in_legend_order():
     p = _three_color_pattern()
-    svg = render_sheet(p, p.legend("group"), "T & <x>", board=None, show_groups=True)
+    svg = render_sheet(p, p.legend(), "T & <x>")
     ET.fromstring(svg)
-    assert "T &amp; &lt;x&gt;" in svg and "Series A" in svg
+    assert "T &amp; &lt;x&gt;" in svg and ">A10<" in svg
 
 
 @pytest.mark.skipif(not SAMPLE.exists(), reason="sample image not available")
@@ -173,7 +173,6 @@ def test_legend_orders():
     p = _three_color_pattern()
     assert [c["ref"] for c in p.legend("code")] == ["A10", "B1", "H7"]
     assert [c["ref"] for c in p.legend("count")][0] == "A10"
-    assert [c["group"] for c in p.legend("group")] == ["Series A", "Series B", "Series H"]
     with pytest.raises(ValueError):
         p.legend("nope")
 
@@ -188,7 +187,7 @@ def test_api_board_and_order():
     from core import api
     buf = io.BytesIO()
     Image.fromarray(upscale(make_art(40, seed=1, m=70), 5)).save(buf, "PNG")
-    out = api.run(buf.getvalue(), "mard_221", board=29, order="group")
+    out = api.run(buf.getvalue(), "mard_221", board=29, order="count")
     assert (out["grid"]["nx"], out["grid"]["ny"]) == (70, 40)
     assert len(out["tiles"]) == 6 and out["tiles"][4]["board"] == [2, 2]
     assert out["total"] == sum(c["count"] for c in out["legend"])
@@ -295,7 +294,7 @@ def test_symbols_are_unique_stable_and_not_alphanumeric():
     assert len(set(sym.values())) == len(sym) == 3
     # a color keeps its symbol whatever order the bead list is shown in
     by_ref = lambda order: {c["ref"]: c["symbol"] for c in p.legend(order)}
-    assert by_ref("code") == by_ref("count") == by_ref("group")
+    assert by_ref("code") == by_ref("count")
 
 
 def test_symbol_chart_and_sheet_render():
@@ -308,8 +307,8 @@ def test_symbol_chart_and_sheet_render():
 
 
 def test_long_code_brands_prefer_symbols():
-    assert load_palette("perler").long_codes
-    assert not load_palette("mard_291").long_codes and not load_palette("hama").long_codes
+    assert load_palette("perler").prefers_symbols and load_palette("dmc").prefers_symbols
+    assert not load_palette("mard_291").prefers_symbols and not load_palette("hama").prefers_symbols
 
 
 def test_color_swap_changes_one_source_color_only():

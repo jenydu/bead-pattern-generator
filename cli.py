@@ -20,7 +20,7 @@ def main(argv=None):
     ap.add_argument("--tolerance", type=float, default=6.0,
                     help="merge colors closer than this (Lab); 0 disables")
     ap.add_argument("--board", type=int, default=0, help="pegboard size; splits the chart")
-    ap.add_argument("--order", default="code", choices=["code", "group", "count"])
+    ap.add_argument("--order", default="code", choices=["code", "count"])
     ap.add_argument("--keep-edges", action="store_true",
                     help="do not trim borders or remove the white/transparent background")
     ap.add_argument("--out", type=Path, help="directory for the SVG charts")
@@ -38,13 +38,13 @@ def main(argv=None):
     print(f"pattern {pattern.shape[1]}x{pattern.shape[0]}, {len(legend)} colors, "
           f"{sum(c['count'] for c in legend)} beads")
     for c in legend:
-        print(f"  {c['ref']:>5}  {c['count']:>5}  {c['group']}")
+        print(f"  {c['ref']:>5}  {c['count']:>5}  {c['name']}")
     if a.out:
         a.out.mkdir(parents=True, exist_ok=True)
         board = a.board or None
         title = f"{pattern.palette.label}: {len(legend)} colors"
         (a.out / "sheet.svg").write_text(
-            render_sheet(pattern, legend, title, board, a.order == "group"), encoding="utf-8")
+            render_sheet(pattern, legend, title, board), encoding="utf-8")
         for n, box in enumerate(tile_boxes(pattern.shape, board=board), 1):
             (a.out / f"chart_{n}.svg").write_text(
                 render_chart(pattern, *box, local_numbers=bool(board)), encoding="utf-8")

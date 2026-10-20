@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const worker = new Worker("worker.js?v=44a439b1");
+const worker = new Worker("worker.js?v=24ac4c20");
 
 let nextId = 1;
 const pending = new Map();
@@ -32,7 +32,7 @@ let openRow = null;       // hex of the swap row whose picker is open
 let fileStem = "";        // uploaded file name without its extension
 let brandInfo = {};       // key -> {symbols: bool}
 
-// kind: "loading" (floating banner with a spinner, so it is visible on a phone), "error", or none
+// kind: "loading" (floating spinner banner), "error", or none
 function setStatus(text, kind) {
   const s = $("status");
   s.textContent = text;
@@ -88,7 +88,7 @@ async function refresh() {
   }
 }
 
-// ---- pixel grid panel -------------------------------------------------------------------
+// ---- pixel grid panel ----
 
 const ratio = () => (detected ? detected[1] / detected[0] : 1);   // rows per column
 
@@ -98,13 +98,24 @@ function setCustomInputs(cols, rows) {
   $("use-custom").disabled = !(cols > 0 && rows > 0);
 }
 
+// With the lock on, changing one custom dimension sets the other from the detected proportions.
+const locked = () => $("lock").checked;
+const rowsFor = (cols) => Math.max(1, Math.round(cols * ratio()));
+const colsFor = (rows) => Math.max(1, Math.round(rows / ratio()));
+
 $("cx").addEventListener("input", () => {
   const c = parseInt($("cx").value, 10);
-  setCustomInputs(c > 0 ? c : "", c > 0 ? Math.max(1, Math.round(c * ratio())) : "");
+  const rows = locked() ? (c > 0 ? rowsFor(c) : "") : $("cy").value;
+  setCustomInputs(c > 0 ? c : "", rows);
 });
 $("cy").addEventListener("input", () => {
   const r = parseInt($("cy").value, 10);
-  setCustomInputs(r > 0 ? Math.max(1, Math.round(r / ratio())) : "", r > 0 ? r : "");
+  const cols = locked() ? (r > 0 ? colsFor(r) : "") : $("cx").value;
+  setCustomInputs(cols, r > 0 ? r : "");
+});
+$("lock").addEventListener("change", () => {
+  const c = parseInt($("cx").value, 10);
+  if (locked() && c > 0) setCustomInputs(c, rowsFor(c));   // snap back to the proportions
 });
 $("use-custom").addEventListener("click", () => {
   const c = parseInt($("cx").value, 10), r = parseInt($("cy").value, 10);
@@ -128,7 +139,7 @@ function describeGrid(r) {
   return t("g_detected_used", { p: g.period.toFixed(2), cropped });
 }
 
-// ---- chart: one zoomable viewer per part, shown one at a time or all ---------------------
+// ---- chart: one zoomable viewer per part, shown one at a time or all ----
 
 let viewers = [];
 let figures = [];
@@ -195,7 +206,7 @@ $("next").addEventListener("click", () => go(active + 1));
 $("view-one").addEventListener("click", () => { viewAll = false; updateView(); });
 $("view-all").addEventListener("click", () => { viewAll = true; updateView(); });
 
-// ---- results ----------------------------------------------------------------------------
+// ---- results ----
 
 // Empty the page while a different image is processed.
 function clearResult() {
@@ -267,7 +278,7 @@ function show(r) {
   $("output").hidden = false;
 }
 
-// ---- color swap -------------------------------------------------------------------------
+// ---- color swap ----
 
 const hexOf = (rgb) => rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
 const textOn = (rgb) => (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] > 140 ? "#000" : "#fff");
@@ -356,7 +367,7 @@ function renderSwap() {
 $("swap-toggle").addEventListener("click", () => { swapOpen = !swapOpen; renderSwap(); });
 $("swap-reset").addEventListener("click", () => { swaps = {}; openRow = null; refresh(); });
 
-// ---- downloads --------------------------------------------------------------------------
+// ---- downloads ----
 
 function save(blob, name) {
   const a = document.createElement("a");
@@ -397,7 +408,7 @@ $("print").addEventListener("click", () => {
   window.print();
 });
 
-// ---- wiring -----------------------------------------------------------------------------
+// ---- wiring ----
 
 function schedule() {
   clearTimeout(timer);
@@ -441,7 +452,7 @@ $("tol").addEventListener("input", () => {
   schedule();
 });
 
-// ---- language ---------------------------------------------------------------------------
+// ---- language ----
 
 const brandLabel = (key) =>
   I18N[lang]["brand_" + key] ?? I18N.en["brand_" + key] ?? brandInfo[key]?.label ?? key;

@@ -5,7 +5,6 @@ printed / saved PDF, where a raster image would be resampled and look soft."""
 import io
 from xml.sax.saxutils import escape
 
-import numpy as np
 from PIL import Image
 
 FONT = ("system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', "
@@ -140,8 +139,7 @@ def render_preview(pattern, scale=12):
     return b.getvalue()
 
 
-def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=40,
-                 labels="code", subtitle=None):
+def render_sheet(pattern, legend, title, board=None, cell=40, labels="code", subtitle=None):
     """Printable sheet as SVG: title, whole chart (red lines between boards), bead counts.
 
     title / subtitle are the finished texts (the page supplies them in the chosen language)."""
@@ -152,18 +150,12 @@ def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=40,
     chip_w, chip_h, gap = (260 if symbols else 190), 52, 14
     per_row = max(int((width - 2 * pad + gap) // (chip_w + gap)), 1)
 
-    items, y, col, last = [], 0, 0, None
+    items, y, col = [], 0, 0
     for c in legend:
-        if show_groups and c["group"] != last:
-            if col:
-                y += chip_h + gap
-            items.append(("group", c["group"], pad, y))
-            y += 34
-            last, col = c["group"], 0
         if col == per_row:
             y += chip_h + gap
             col = 0
-        items.append(("chip", c, pad + col * (chip_w + gap), y))
+        items.append((c, pad + col * (chip_w + gap), y))
         col += 1
     head = 110
     top = head + ch + 30
@@ -178,12 +170,8 @@ def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=40,
              f'<text x="{pad}" y="52" font-size="36" fill="{INK}">{escape(title)}</text>',
              f'<text x="{pad}" y="86" font-size="20" fill="{MUTED}">{escape(sub)}</text>',
              "</g>", f'<g transform="translate({pad} {head})">{chart}</g>']
-    for kind, c, x, yy in items:
+    for c, x, yy in items:
         yy += top
-        if kind == "group":
-            parts.append(f'<text x="{x}" y="{yy + 16}" font-family="{FONT}" font-size="20" '
-                         f'fill="{MUTED}">{escape(c)}</text>')
-            continue
         rgb = c["rgb"]
         mark = c["symbol"] if symbols else c["ref"]
         shown = (f'<text x="{x + 120}" y="{yy + chip_h / 2}" font-size="22" fill="{INK}">'
@@ -191,10 +179,10 @@ def render_sheet(pattern, legend, title, board=None, show_groups=False, cell=40,
         parts.append(
             f'<rect x="{x}" y="{yy}" width="{chip_w}" height="{chip_h}" rx="8" fill="#fafafa" '
             f'stroke="#bebebe" stroke-width="2"/>'
-            f'<rect x="{x + 6}" y="{yy + 6}" width="{(90 if not symbols else 100)}" '
+            f'<rect x="{x + 6}" y="{yy + 6}" width="{100 if symbols else 90}" '
             f'height="{chip_h - 12}" rx="6" fill="{_hex(rgb)}"/>'
             f'<g font-family="{FONT}" dominant-baseline="central">'
-            f'<text x="{x + (51 if not symbols else 56)}" y="{yy + chip_h / 2}" '
+            f'<text x="{x + (56 if symbols else 51)}" y="{yy + chip_h / 2}" '
             f'font-size="{26 if symbols else 22}" text-anchor="middle" '
             f'fill="{_text_fill(rgb)}">{escape(mark)}</text>{shown}'
             f'<text x="{x + chip_w - 12}" y="{yy + chip_h / 2}" font-size="24" '

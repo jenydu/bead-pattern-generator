@@ -1,5 +1,4 @@
 """Brand palettes (beadcolors raw CSVs), RGB->Lab, nearest-color matching."""
-import colorsys
 import csv
 import re
 from dataclasses import dataclass
@@ -9,7 +8,6 @@ import numpy as np
 
 PALETTE_DIR = Path(__file__).resolve().parent.parent / "data" / "palettes"
 
-# file stem -> label. diamondDotz is diamond painting, so it is not offered.
 BRANDS = {
     "mard_291": "MARD 291 (full)",
     "mard_221": "MARD 221 (basic, A-H and M)",
@@ -29,51 +27,12 @@ BRANDS = {
     "dmc": "DMC",
 }
 
-# Brands that default to symbols on the chart even though their codes are short: a DMC
-# number is a bare number, which reads like a row/column number inside a cell.
-SYMBOL_BRANDS = {"dmc"}
+SYMBOL_BRANDS = {"dmc"}  # short but purely numeric codes, easily mistaken for row numbers
 
 
 def natural_key(ref):
-    """A2 < A10 < B1. Text sorts before numbers at the same position, so DMC's B5200, Blanc,
-    ecru come before 310, 311, ... (and text never has to be compared with a number)."""
+    """Sort key: A2 < A10 < B1, and text before numbers (DMC's B5200, Ecru, White, then 150...)."""
     return [(1, int(p)) if p.isdigit() else (0, p) for p in re.split(r"(\d+)", ref) if p]
-
-
-FAMILIES = ["Red", "Pink", "Orange", "Brown", "Yellow", "Green", "Teal", "Blue", "Purple",
-            "White / Gray / Black"]
-
-
-def color_family(rgb):
-    """Rough hue family of an RGB color, for grouping beads the way people talk about them."""
-    r, g, b = (int(v) / 255 for v in rgb)
-    h, s, v = colorsys.rgb_to_hsv(r, g, b)
-    h *= 360
-    if s < 0.12 or v < 0.24:
-        return "White / Gray / Black"
-    if h >= 335 or h < 15:
-        if v < 0.5:
-            return "Brown"
-        return "Pink" if s < 0.5 and v > 0.8 else "Red"
-    if h < 45:
-        return "Brown" if v < 0.65 or (s < 0.55 and v < 0.9) else "Orange"
-    if h < 70:
-        return "Brown" if (v < 0.5 and h < 60) else "Yellow"
-    if h < 165:
-        return "Green"
-    if h < 200:
-        return "Teal"
-    if h < 255:
-        return "Blue"
-    if h < 295:
-        return "Purple"
-    return "Pink" if v > 0.8 or s < 0.6 else "Purple"
-
-
-def series_of(ref):
-    """Leading letters of a code: A1 -> A, ZG3 -> ZG, 80-15179 -> ''."""
-    m = re.match(r"[A-Za-z]+", ref)
-    return m.group().upper() if m else ""
 
 
 def rgb_to_lab(rgb):
@@ -135,61 +94,20 @@ class Palette:
     def __len__(self):
         return len(self.refs)
 
-    def subset(self, refs):
-        """Palette restricted to the given refs ("colors I own")."""
-        want = set(refs)
-        idx = [i for i, r in enumerate(self.refs) if r in want]
-        if not idx:
-            raise ValueError("no matching refs")
-        return Palette(self.key, self.label, [self.refs[i] for i in idx],
-                       [self.names[i] for i in idx], self.rgb[idx], self.lab[idx])
-
-    @property
-    def long_codes(self):
-        """True if codes are too long to read inside a cell (Perler's 80-15179)."""
-        return max(len(r) for r in self.refs) > 5
-
     @property
     def prefers_symbols(self):
-        """Whether the chart should use symbols by default for this brand."""
-        return self.long_codes or self.key in SYMBOL_BRANDS
-
-    @property
-    def grouping(self):
-        """"series" if the code letters split the palette into real groups (MARD A..H, M, P,
-        ... or Artkal M's MA..MH), else "hue". A brand whose codes share one letter
-        (Hama H01.., Nabbi N01..), have none (Perler 80-15179), or are 80-90% one prefix
-        (Artkal C and S) is grouped by color family instead."""
-        counts = {}
-        for r in self.refs:
-            k = series_of(r)
-            counts[k] = counts.get(k, 0) + 1
-        if len(counts) >= 2 and "" not in counts and max(counts.values()) <= 0.6 * len(self):
-            return "series"
-        return "hue"
-
-    def group_of(self, i):
-        """(sort key, label) of the group palette entry i belongs to."""
-        if self.grouping == "series":
-            s = series_of(self.refs[i])
-            return natural_key(s), f"Series {s}"
-        fam = color_family(self.rgb[i])
-        return FAMILIES.index(fam), fam
+        """Codes too long to read in a cell (Perler's 80-15179), or bare numbers (DMC)."""
+        return max(len(r) for r in self.refs) > 5 or self.key in SYMBOL_BRANDS
 
     def order(self):
         """Indices in the brand's own order (natural sort of ref)."""
         return sorted(range(len(self)), key=lambda i: natural_key(self.refs[i]))
 
-    def match(self, rgb, metric="de2000"):
-        """(..., 3) RGB -> (...) palette indices. Only unique colors are compared."""
+    def match(self, rgb):
+        """(..., 3) RGB -> (...) indices of the nearest palette colors (CIEDE2000)."""
         rgb = np.asarray(rgb, dtype=np.uint8)
-        flat = rgb.reshape(-1, 3)
-        uniq, inv = np.unique(flat, axis=0, return_inverse=True)
-        ulab = rgb_to_lab(uniq)
-        if metric == "de2000":
-            d = delta_e2000(ulab[:, None, :], self.lab[None, :, :])
-        else:
-            d = np.linalg.norm(ulab[:, None, :] - self.lab[None, :, :], axis=-1)
+        uniq, inv = np.unique(rgb.reshape(-1, 3), axis=0, return_inverse=True)
+        d = delta_e2000(rgb_to_lab(uniq)[:, None, :], self.lab[None, :, :])
         return d.argmin(axis=1)[inv.reshape(-1)].reshape(rgb.shape[:-1])
 
 
@@ -210,5 +128,5 @@ def parse_palette(key, text):
     return Palette(key, BRANDS.get(key, key), refs, names, rgb, rgb_to_lab(rgb))
 
 
-def load_palette(key, directory=PALETTE_DIR):
-    return parse_palette(key, (Path(directory) / f"{key}.csv").read_text(encoding="utf-8"))
+def load_palette(key):
+    return parse_palette(key, (PALETTE_DIR / f"{key}.csv").read_text(encoding="utf-8"))

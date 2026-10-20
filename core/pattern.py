@@ -6,11 +6,9 @@ import numpy as np
 from .clean import transparent_mask
 from .palette import Palette, delta_e2000, rgb_to_lab
 
-
-# Symbols for charts. No letters or digits: they would be confused with bead codes and with
-# the row / column numbers. Plain punctuation first, then geometric shapes that every
-# system font has; past that, pairs of punctuation marks.
-_PUNCT = list("?><~!#$%&+=@^/|")  # not * : ; which are too small to read in a cell
+# Chart symbols. No letters or digits (they read as codes or row numbers), and no * : ; which
+# are too small in a cell. Punctuation first, then shapes every system font has, then pairs.
+_PUNCT = list("?><~!#$%&+=@^/|")
 SYMBOLS = _PUNCT + list("■▲▼●◆□△▽○◇◐◑▣▤▥▦▧▨◢◣◤◥◉")
 SYMBOLS += [a + b for a in _PUNCT[:10] for b in _PUNCT[:10] if a != b]
 
@@ -19,7 +17,15 @@ SYMBOLS += [a + b for a in _PUNCT[:10] for b in _PUNCT[:10] if a != b]
 class Pattern:
     palette: Palette
     cells: np.ndarray  # (ny, nx) int, -1 = empty
-    source: np.ndarray = None  # (ny, nx, 3) uint8, the color each cell was matched from
+    source: np.ndarray  # (ny, nx, 3) uint8, the image color each cell was matched from
+
+    @property
+    def shape(self):
+        return self.cells.shape
+
+    def counts(self):
+        used, n = np.unique(self.cells[self.cells >= 0], return_counts=True)
+        return dict(zip(used.tolist(), n.tolist()))
 
     def symbol_map(self):
         """{palette index: symbol} for the used colors, assigned in the brand's code order so
@@ -38,7 +44,7 @@ class Pattern:
 
         Each row also lists the nearest palette colors, for swapping one in."""
         solid = self.cells >= 0
-        if self.source is None or not solid.any():
+        if not solid.any():
             return []
         src = self.source[solid]
         uniq, inv, counts = np.unique(src, axis=0, return_inverse=True, return_counts=True)
@@ -60,42 +66,18 @@ class Pattern:
                                 "de": round(float(d[k, i]), 1)} for i in near]})
         return rows
 
-    @property
-    def shape(self):
-        return self.cells.shape
-
-    def counts(self):
-        used, n = np.unique(self.cells[self.cells >= 0], return_counts=True)
-        return dict(zip(used.tolist(), n.tolist()))
-
     def legend(self, order="code"):
-        """Used colors: [{ref, name, rgb, count, group, symbol}, ...].
-
-        order: "code" = the brand's own order (MARD: A1, A2, ... A10, ... B1);
-        "group" = by series letter (A, B, ...) when the brand has them, otherwise by hue
-        family, light to dark; "count" = most beads first."""
+        """Used colors as [{ref, name, rgb, count, symbol}], in the brand's own order
+        (MARD: A1, A2, ... A10, ... B1) or, for order="count", most beads first."""
+        if order not in ("code", "count"):
+            raise ValueError(f"unknown order {order!r}")
         counts = self.counts()
         symbols = self.symbol_map()
-        rows = []
-        for i in self.palette.order():
-            if i in counts:
-                rgb = self.palette.rgb[i]
-                key, label = self.palette.group_of(i)
-                rows.append({"ref": self.palette.refs[i], "name": self.palette.names[i],
-                             "rgb": rgb.tolist(), "count": counts[i], "group": label,
-                             "symbol": symbols[i],
-                             "_key": key, "_light": float(rgb_to_lab(rgb)[0])})
-        if order == "group":
-            if self.palette.grouping == "series":  # rows are already in code order
-                rows.sort(key=lambda r: r["_key"])
-            else:
-                rows.sort(key=lambda r: (r["_key"], -r["_light"]))
-        elif order == "count":
-            rows.sort(key=lambda r: -r["count"])  # stable: ties stay in code order
-        elif order != "code":
-            raise ValueError(f"unknown order {order!r}")
-        for r in rows:
-            del r["_key"], r["_light"]
+        rows = [{"ref": self.palette.refs[i], "name": self.palette.names[i],
+                 "rgb": self.palette.rgb[i].tolist(), "count": counts[i], "symbol": symbols[i]}
+                for i in self.palette.order() if i in counts]
+        if order == "count":
+            rows.sort(key=lambda r: -r["count"])   # stable, so ties stay in code order
         return rows
 
     def rgb_image(self, background=(255, 255, 255)):
@@ -106,7 +88,7 @@ class Pattern:
         return out
 
 
-def build_pattern(rgba, palette, metric="de2000", swaps=None):
+def build_pattern(rgba, palette, swaps=None):
     """Match every opaque cell of an (ny, nx, 4) array to its nearest palette color.
 
     swaps: {"rrggbb": ref} sends that source color to a chosen bead instead of the nearest
@@ -116,7 +98,7 @@ def build_pattern(rgba, palette, metric="de2000", swaps=None):
     solid = ~transparent_mask(rgba)
     if solid.any():
         uniq, inv = np.unique(rgba[solid][:, :3], axis=0, return_inverse=True)
-        chosen = palette.match(uniq, metric)
+        chosen = palette.match(uniq)
         index = {r: i for i, r in enumerate(palette.refs)}
         for hexkey, ref in (swaps or {}).items():
             if ref in index and len(hexkey) == 6:

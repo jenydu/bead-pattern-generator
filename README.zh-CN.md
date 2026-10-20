@@ -56,7 +56,7 @@
 | Yant | 119 | Y002 | beadcolors |
 | DMC（十字绣线） | 454 | 310、3865、B5200 | [threadcolors.com](https://threadcolors.com/)，由 `tools/scrape_threadcolors.py` 抓取 |
 
-拼豆颜色来自 [beadcolors](https://github.com/maxcleme/beadcolors)，这是一个由社区维护的色卡集合（MIT 许可；贡献者署名见 `data/palettes/*.csv`），`build.py` 会把它复制到 `data/palettes/`。beadcolors 里还有 Diamond Dotz，数据已复制但不提供选择，因为它不是熨烫拼豆。
+拼豆颜色来自 [beadcolors](https://github.com/maxcleme/beadcolors)，这是一个由社区维护的色卡集合（MIT 许可；贡献者署名见 `data/palettes/*.csv`），`build.py` 会把它复制到 `data/palettes/`。
 
 所有颜色都只是屏幕上的近似值。真实的拼豆和绣线会因批次而不同，在不同光线下看起来也不一样，做大件作品之前请先对一对色样。
 

@@ -1,7 +1,6 @@
-// Zoomable, pannable image viewer for the charts. Fits the chart to its box by default.
-//   wheel + Ctrl/Cmd, pinch, or the buttons zoom; drag pans; double-click toggles fit / 100%.
-// On touch screens a one-finger drag scrolls the page while the chart is at "fit", and pans
-// the chart once it has been zoomed in.
+// Zoomable, pannable chart viewer, fitted to its box by default. Zoom: buttons, Ctrl/Cmd + wheel
+// or pinch; pan: drag; double-click toggles fit / zoomed. On touch screens one finger scrolls
+// the page at "fit" and pans the chart once zoomed in.
 class Viewer {
   constructor(url, { maxHeight = () => window.innerHeight * 0.78, onKey } = {}) {
     this.maxHeight = maxHeight;

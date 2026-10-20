@@ -47,11 +47,6 @@ def test_match_exact_and_order():
     assert p.refs[order[0]] == "A1"
 
 
-def test_subset():
-    p = load_palette("mard_291").subset(["A1", "B1"])
-    assert len(p) == 2
-
-
 def test_dmc_palette_from_threadcolors_workbook():
     from pathlib import Path
     from core.palette import natural_key
@@ -62,7 +57,6 @@ def test_dmc_palette_from_threadcolors_workbook():
     i = p.refs.index("310")
     assert p.names[i] == "Black" and tuple(p.rgb[i]) == (0, 0, 0)
     assert p.prefers_symbols and not load_palette("mard_291").prefers_symbols
-    assert p.grouping == "hue"      # no letter series, so grouped by color family
     assert sorted(["310", "White", "3", "B5200"], key=natural_key) == ["B5200", "White", "3", "310"]
 
     openpyxl = pytest.importorskip("openpyxl")
@@ -85,6 +79,6 @@ def test_dmc_pattern_end_to_end():
     art[10:] = (30, 60, 200)
     buf = io.BytesIO()
     Image.fromarray(np.kron(art, np.ones((6, 6, 1), np.uint8))).save(buf, "PNG")
-    out = api.run(buf.getvalue(), brand="dmc", labels="symbol", order="group")
+    out = api.run(buf.getvalue(), brand="dmc", labels="symbol", order="count")
     assert next(b for b in api.brands() if b["key"] == "dmc")["symbols"]
     assert out["legend"] and all(c["symbol"] and c["ref"].isalnum() for c in out["legend"])

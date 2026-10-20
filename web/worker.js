@@ -6,8 +6,7 @@ let api = null;
 async function init() {
   const py = await loadPyodide();
   await py.loadPackage(["numpy", "pillow"]);
-  // "no-cache" = re-check with the server each time, so a new deploy never mixes old Python
-  // files with a new page (the browser would otherwise reuse its copy for a few minutes)
+  // "no-cache": revalidate every time, so a new deploy never mixes old Python with a new page
   const files = await (await fetch("py/manifest.json", { cache: "no-cache" })).json();
   for (const f of files) {
     const res = await fetch("py/" + f, { cache: "no-cache" });

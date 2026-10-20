@@ -33,10 +33,10 @@ def prepare(rgba, clean_edges=True):
     elif max(w, h) <= MAX_AUTO_CELLS:
         kind = "pixels"
     else:
-        # no pixel structure and far too many pixels to be beads: a regular picture
+        # no pixel structure and too many pixels to be beads: treat it as a picture
         kind = "photo"
         p = max(w, h) / PHOTO_LONG_SIDE
-        grid = Grid(p, p, 0.0, 0.0, max(round(w / p), 1), max(round(h / p), 1), 0.0, 0.0, 0.0)
+        grid = Grid(p, p, max(round(w / p), 1), max(round(h / p), 1), 0.0, 0.0, 0.0)
     return Prepared(rgba, grid, kind, original)
 
 
@@ -44,7 +44,7 @@ def custom_grid(prep, cells_x, cells_y):
     h, w = prep.rgba.shape[:2]
     cx = int(np.clip(cells_x, 1, MAX_CELLS))
     cy = int(np.clip(cells_y, 1, MAX_CELLS))
-    return Grid(w / cx, h / cy, 0.0, 0.0, cx, cy, 0.0, 0.0, 1.0)
+    return Grid(w / cx, h / cy, cx, cy, 0.0, 0.0, 1.0)
 
 
 def build(prep, palette, cells_x=0, cells_y=0, tolerance=6.0, clean_edges=True, swaps=None):

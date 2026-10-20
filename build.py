@@ -1,4 +1,4 @@
-"""Sync brand palettes from beadcolors and stage core/ + data/ into web/py for Pages."""
+"""Sync palettes from beadcolors, build dmc.csv, version the page files, stage web/py."""
 import csv
 import hashlib
 import json
@@ -11,14 +11,8 @@ ROOT = Path(__file__).parent
 SRC = ROOT.parent / "beadcolors" / "raw"
 DST = ROOT / "data" / "palettes"
 WEB_PY = ROOT / "web" / "py"
-
-
-# MARD "basic" chart: series A-H and M (221 codes). The code list matches the 221-color
-# palette in github.com/Jett-Wu/Perler_Beads_Generator (MIT); RGB values stay beadcolors'.
-MARD_221 = re.compile(r"[A-HM]\d+$")
-
-
 DMC_XLSX = ROOT / "data" / "dmc_threadcolors.xlsx"  # made by tools/scrape_threadcolors.py
+MARD_221 = re.compile(r"[A-HM]\d+$")  # the standard 221 range: series A-H and M
 
 
 def build_dmc():
@@ -33,7 +27,7 @@ def build_dmc():
     ws = load_workbook(DMC_XLSX, read_only=True, data_only=True)["DMC"]
     rows = [r for r in list(ws.iter_rows(values_only=True))[1:] if r[0] is not None]
 
-    def key(row):  # B5200, Ecru, White first, then 1, 2, 3 ...
+    def key(row):  # B5200, Ecru, White, then 150, 151 ...
         n = str(row[0]).strip()
         return (1, int(n), "") if n.isdigit() else (0, 0, n)
 
@@ -49,12 +43,11 @@ def sync_palettes():
         return
     DST.mkdir(parents=True, exist_ok=True)
     for old in DST.glob("*.csv"):
-        if old.stem != "dmc":  # generated from the workbook below, not copied from beadcolors
+        if old.stem != "dmc":  # built from the workbook, not copied from beadcolors
             old.unlink()
     for f in sorted(SRC.glob("*.csv")):
-        if f.stem == "mard":
-            continue  # shipped as mard_291 / mard_221
-        shutil.copy2(f, DST / f.name)
+        if f.stem not in ("mard", "diamondDotz"):  # MARD ships as 291 / 221; diamonds aren't beads
+            shutil.copy2(f, DST / f.name)
     rows = (SRC / "mard.csv").read_text(encoding="utf-8").splitlines()
     (DST / "mard_291.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
     basic = [r for r in rows if MARD_221.match(r.split(",")[0])]
@@ -66,10 +59,10 @@ def sync_palettes():
 
 
 def stamp_assets(web=None):
-    """Version the page's own files (style.css?v=1a2b3c4d ...) so a browser never pairs a new
-    index.html with a cached old stylesheet or script: GitHub Pages lets browsers reuse files
-    for ten minutes, and the page breaks when the pieces come from different deploys.
-    The version is a hash of the file's content, so it only changes when the file does."""
+    """Stamp the page's files with a content hash (style.css?v=1a2b3c4d).
+
+    GitHub Pages lets browsers reuse files for ten minutes, so without this a new index.html
+    can be paired with a cached old stylesheet or script and break."""
     web = Path(web or ROOT / "web")
 
     def digest(name):
@@ -81,7 +74,7 @@ def stamp_assets(web=None):
         if new != text:
             path.write_text(new, encoding="utf-8")
 
-    # app.js names the worker, so stamp that first; index.html names the rest
+    # app.js names the worker, so it is stamped first
     rewrite(web / "app.js", r'new Worker\("worker\.js(\?v=\w+)?"\)',
             f'new Worker("worker.js?v={digest("worker.js")}")')
     for name in ("style.css", "i18n.js", "viewer.js", "app.js"):
