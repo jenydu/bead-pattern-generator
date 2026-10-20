@@ -32,7 +32,7 @@ Pixel art found online rarely arrives clean. It has been scaled up by some odd f
 
 **Viewing and exporting**
 - The chart fits your screen; zoom with the buttons, pinch or Ctrl/Cmd + scroll, drag to pan, and step through boards with Prev / Next or show them all.
-- Download a PNG sheet (chart plus bead counts) or print / save as PDF. Charts are vector graphics, so they stay sharp when zoomed or printed. Files are named `<brand>_<your file name>`.
+- "Save PNG" and "Save PDF" open the result in a new tab, where you save it. The sheet (whole chart plus bead counts) comes first; when the pattern spans several pegboards, the PDF adds one page per board. The charts on screen are vector graphics, so they stay sharp when zoomed.
 - Works on phones and desktops.
 
 ## Supported brands

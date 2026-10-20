@@ -80,8 +80,7 @@ letters or digits), assigned in code order so a color keeps its symbol.
 
 **render** produces SVG, because text and lines stay sharp when zoomed, on high-DPI screens and
 in a printed PDF, where a raster would be resampled. Pegboard size (default 52) splits the chart
-into boards numbered from 1, with red board lines on the full sheet. "Download PNG" rasterizes
-the sheet SVG in the browser.
+into boards numbered from 1, with red board lines on the full sheet.
 
 ## Frontend
 
@@ -89,10 +88,15 @@ the sheet SVG in the browser.
   Python files are fetched with `no-cache` so a new deploy never mixes old Python with a new page.
 - `viewer.js` shows each chart part fitted to its box, with zoom (buttons, Ctrl/Cmd + wheel,
   pinch), drag to pan and double-click to toggle. Several boards are shown one at a time with
-  Prev / Next, or all at once. Printing shows every part, one per page.
+  Prev / Next, or all at once.
+- Outputs: "Save PNG" / "Save PDF" open a new tab (inside the click, as browsers require) and
+  fill it once the file exists; the user saves it from there. Both rasterize the SVGs on a
+  canvas (capped at 12M pixels, since iOS Safari cannot go much higher). The PDF is written by a
+  small builder in `app.js`: one deflated RGB image per A4 page, the sheet first and then one
+  page per board.
 - `i18n.js` holds the English and Simplified Chinese text (`t(key, values)`; `{name}` marks a
   filled-in value; `data-i18n` marks static HTML). The language is remembered in `localStorage`.
-  Python never knows the language: the page passes the wording of the downloadable sheet to
+  Python never knows the language: the page passes the wording of the saved sheet to
   `api.run(texts=...)`. `tests/test_i18n.py` checks both languages have the same keys and
   placeholders. Color names and bead codes are not translated.
 - The status message floats at the top while Python loads or an image is processed, so a phone

@@ -24,7 +24,6 @@ let timer = null;
 let runToken = 0;
 let custom = null;        // null = use the detected grid, else [columns, rows]
 let detected = null;      // [columns, rows] found by Python
-let lastSheet = "";
 let lastResult = null;
 let swaps = {};           // {"rrggbb": bead ref} chosen in the color swap panel
 let swapOpen = false;
@@ -68,7 +67,7 @@ async function refresh() {
       clean: $("clean").checked,
       labels: $("labels").value,
       swaps: JSON.stringify(swaps),
-      texts: JSON.stringify({   // wording of the downloaded sheet, which Python draws
+      texts: JSON.stringify({   // wording of the saved sheet, which Python draws
         brand: brandLabel($("brand").value),
         title: t("sheet_title"),
         subtitle: t("sheet_size"),
@@ -220,11 +219,10 @@ function clearResult() {
   for (const id of ["orig", "preview"]) $(id).removeAttribute("src");
   $("legend").tBodies[0].replaceChildren();
   $("swap-table").tBodies[0].replaceChildren();
-  $("print").disabled = $("dl-png").disabled = true;
+  $("open-png").disabled = $("open-pdf").disabled = true;
   urls.forEach(URL.revokeObjectURL);
   urls = [];
   lastResult = null;
-  lastSheet = "";
   $("gridbox").hidden = true;
   setCustomInputs("", "");
 }
@@ -276,8 +274,8 @@ function show(r) {
 
   lastResult = r;
   renderSwap();
-  lastSheet = r.sheet;
-  $("print").disabled = $("dl-png").disabled = false;
+  preparePng();
+  $("open-png").disabled = $("open-pdf").disabled = false;
   $("output").hidden = false;
 }
 
@@ -370,22 +368,21 @@ function renderSwap() {
 $("swap-toggle").addEventListener("click", () => { swapOpen = !swapOpen; renderSwap(); });
 $("swap-reset").addEventListener("click", () => { swaps = {}; openRow = null; refresh(); });
 
-// ---- downloads ----
+// ---- outputs: a PNG and a PDF, each opened in a new tab to be saved from there ----
 
-function save(blob, name) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
+const outputName = () => `${$("brand").value}_${fileStem || "pattern"}`;
 
-$("dl-png").addEventListener("click", () => {
-  const m = lastSheet.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+// Draw an SVG onto a canvas. Safari on iOS cannot make a canvas above about 16 million pixels,
+// so the scale is lowered for big sheets.
+async function svgToCanvas(svg, scale, maxPixels) {
+  const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
   const w = parseFloat(m[1]), h = parseFloat(m[2]);
-  const scale = Math.min(3, 12000 / Math.max(w, h));   // sharp, but within canvas limits
-  const img = new Image();
-  img.onload = () => {
+  scale = Math.min(scale, 12000 / Math.max(w, h), Math.sqrt(maxPixels / (w * h)));
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(w * scale);
     canvas.height = Math.round(h * scale);
@@ -393,23 +390,118 @@ $("dl-png").addEventListener("click", () => {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((b) => save(b, `${outputName()}.png`), "image/png");
-  };
-  img.src = blobUrl(lastSheet, "image/svg+xml");
-});
-
-// The saved file is named "<brand>_<original file name>"; for "Save as PDF" the browser
-// proposes the page title, so borrow it for the print.
-function outputName() {
-  return `${$("brand").value}_${fileStem || "pattern"}`;
+    return canvas;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
-$("print").addEventListener("click", () => {
-  const title = document.title;
-  document.title = outputName();
-  window.addEventListener("afterprint", () => { document.title = title; }, { once: true });
-  window.print();
-});
+async function makePng(svg) {
+  for (let scale = 3; scale >= 0.75; scale /= 2) {   // smaller if the browser refuses
+    try {
+      const blob = await new Promise((resolve) =>
+        svgToCanvas(svg, scale, 12e6).then((c) => c.toBlob(resolve, "image/png")));
+      if (blob) return blob;
+    } catch (err) { /* try a smaller canvas */ }
+  }
+  return null;
+}
+
+async function canvasToPdfImage(canvas) {
+  const { width: w, height: h } = canvas;
+  if (typeof CompressionStream === "function") {   // lossless: raw RGB, deflated
+    const rgba = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+    const rgb = new Uint8Array(w * h * 3);
+    for (let i = 0, j = 0; i < rgba.length; i += 4) {
+      rgb[j++] = rgba[i]; rgb[j++] = rgba[i + 1]; rgb[j++] = rgba[i + 2];
+    }
+    const packed = new Blob([rgb]).stream().pipeThrough(new CompressionStream("deflate"));
+    return { w, h, filter: "/FlateDecode", data: new Uint8Array(await new Response(packed).arrayBuffer()) };
+  }
+  const jpg = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+  return { w, h, filter: "/DCTDecode", data: new Uint8Array(await jpg.arrayBuffer()) };
+}
+
+// A PDF with one image per page, each fitted to an A4 page (landscape if the image is wide).
+function buildPdf(images, title) {
+  const enc = new TextEncoder();
+  const chunks = [], offsets = [];
+  let length = 0;
+  const put = (x) => {
+    const bytes = typeof x === "string" ? enc.encode(x) : x;
+    chunks.push(bytes);
+    length += bytes.length;
+  };
+  const obj = (n, dict, stream) => {
+    offsets[n] = length;
+    put(`${n} 0 obj\n${dict}\n`);
+    if (stream) { put("stream\n"); put(stream); put("\nendstream\n"); }
+    put("endobj\n");
+  };
+  put("%PDF-1.4\n");
+  obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+  obj(2, `<< /Type /Pages /Kids [${images.map((_, i) => `${4 + 3 * i} 0 R`).join(" ")}] /Count ${images.length} >>`);
+  obj(3, `<< /Title (${title.replace(/[\\()]/g, "")}) >>`);
+  images.forEach((im, i) => {
+    const [pw, ph] = im.w > im.h * 1.1 ? [841.89, 595.28] : [595.28, 841.89];
+    const margin = 28, s = Math.min((pw - 2 * margin) / im.w, (ph - 2 * margin) / im.h);
+    const dw = im.w * s, dh = im.h * s;
+    const content = enc.encode(`q ${dw.toFixed(2)} 0 0 ${dh.toFixed(2)} ${((pw - dw) / 2).toFixed(2)} ${(ph - margin - dh).toFixed(2)} cm /Im0 Do Q`);
+    obj(4 + 3 * i, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 ${6 + 3 * i} 0 R >> >> /Contents ${5 + 3 * i} 0 R >>`);
+    obj(5 + 3 * i, `<< /Length ${content.length} >>`, content);
+    obj(6 + 3 * i, `<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter ${im.filter} /Length ${im.data.length} >>`, im.data);
+  });
+  const count = 3 + 3 * images.length, xref = length;
+  put(`xref\n0 ${count + 1}\n0000000000 65535 f \n`
+    + offsets.slice(1).map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join(""));
+  put(`trailer\n<< /Size ${count + 1} /Root 1 0 R /Info 3 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(chunks, { type: "application/pdf" });
+}
+
+// The sheet (whole chart and bead counts), then one page per pegboard if there are several.
+async function makePdf(result) {
+  const pages = [result.sheet];
+  if (result.tiles.length > 1) pages.push(...result.tiles.map((tile) => tile.svg));
+  const images = [];
+  for (const svg of pages) images.push(await canvasToPdfImage(await svgToCanvas(svg, 3, 6e6)));
+  return buildPdf(images, outputName());
+}
+
+// Each output is made once per result; the PNG is prepared shortly after the result appears.
+let jobs = { result: null };
+function job(kind) {
+  if (jobs.result !== lastResult) jobs = { result: lastResult };
+  jobs[kind] ??= (kind === "png" ? makePng(lastResult.sheet) : makePdf(lastResult))
+    .then((blob) => blob && { blob, url: URL.createObjectURL(blob) });
+  return jobs[kind];
+}
+let prepareTimer = null;
+function preparePng() {
+  clearTimeout(prepareTimer);
+  prepareTimer = setTimeout(() => { if (lastResult) job("png"); }, 800);
+}
+
+// The tab is opened inside the click, which browsers require, and filled in once the file exists.
+async function openInTab(kind) {
+  const tab = window.open("", "_blank");
+  if (!tab) {
+    setStatus(t("err_popup"), "error");
+    return;
+  }
+  tab.document.title = outputName();
+  tab.document.body.textContent = t("working");
+  try {
+    const made = await job(kind);
+    if (!made) throw new Error("no file");
+    tab.location.href = made.url;
+  } catch (err) {
+    tab.close();
+    setStatus(t("err_file"), "error");
+  }
+}
+
+$("open-png").addEventListener("click", () => openInTab("png"));
+$("open-pdf").addEventListener("click", () => openInTab("pdf"));
 
 // ---- wiring ----
 
@@ -481,7 +573,7 @@ function changeLanguage(l) {
   if (!imageBytes && !s.hidden && !s.classList.contains("error")) {
     setStatus($("brand").disabled ? t("loading_python") : t("choose_image"), $("brand").disabled ? "loading" : "");
   }
-  if (imageBytes) refresh();   // redraw the captions, the legend and the downloadable sheet
+  if (imageBytes) refresh();   // redraw the captions, the legend and the saved sheet
 }
 
 for (const b of document.querySelectorAll("#lang button")) {

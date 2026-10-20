@@ -179,16 +179,3 @@ footer a:hover { color: var(--ink); }
   #swap-toggle.bar { padding-left: .9rem; padding-right: .9rem; }
   #swap { padding-left: .9rem; padding-right: .9rem; }
 }
-
-@media print {
-  body { background: #fff; padding: 0; max-width: none; }
-  header, #controls, footer, .pair, #summary, #status, #swap-wrap, .pager, .hint, .vtools, #output > .card:first-child { display: none !important; }
-  main { display: block; }
-  .card { border: 0; padding: 0; margin: 0; }
-  #tiles .tile { display: block !important; break-after: page; }
-  #tiles .tile figcaption { display: block !important; }
-  .viewer { height: auto !important; overflow: visible; border: 0; }
-  .viewer .stage { position: static; transform: none !important; }
-  .viewer .stage img { width: 100%; max-height: 24cm; object-fit: contain; }
-  table { break-inside: avoid; }
-}

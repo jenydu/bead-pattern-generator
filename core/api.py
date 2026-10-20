@@ -12,7 +12,7 @@ from .render import render_chart, render_preview, render_sheet, tile_boxes
 
 _cache = {}
 
-# Wording of the downloadable sheet. The page passes translations of these.
+# Wording of the saved sheet. The page passes translations of these.
 SHEET_TEXTS = {
     "title": "{brand} bead pattern: {colors} colors, {beads} beads",
     "subtitle": "{cols} x {rows} cells",
