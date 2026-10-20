@@ -6,6 +6,8 @@ A minimalistic bead and cross-stitch pattern generator specialized for pixel art
 
 **[Open the generator](https://jenydu.github.io/pixel-art-to-beads/)**: it runs entirely in your browser, and your image is never uploaded.
 
+**No AI.** Nothing here uses AI or machine learning. Your image is processed with ordinary signal processing and color math, so the same image always gives the same pattern, and nothing is guessed or invented: what you get is your own pixel art, tidied up.
+
 ## What makes it different
 
 Most pattern generators take a photo and shrink it to a grid of beads, which blurs edges and loses detail. This one starts from the other end: your image is already pixel art, so the job is to recover that art exactly.

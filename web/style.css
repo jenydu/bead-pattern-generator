@@ -22,7 +22,9 @@ body {
   color: var(--ink);
   background: var(--bg);
 }
-header { margin: 0 0 1.25rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+/* title and language switch share the first row; the tagline gets the full width below */
+header { margin: 0 0 1.25rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; align-items: start; }
+header p { grid-column: 1 / -1; }
 #lang { flex: none; display: flex; align-items: center; gap: .15rem; color: var(--gray); font-size: .95rem; }
 #lang button { min-height: 32px; margin: 0; padding: .1rem .4rem; border: 0; background: none; border-radius: 6px; color: var(--blue-strong); font-weight: 400; }
 #lang button:hover:not(:disabled) { background: rgba(255,255,255,.7); text-decoration: underline; }

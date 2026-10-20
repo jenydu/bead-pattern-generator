@@ -3,7 +3,7 @@
 const I18N = {
   en: {
     title: "Pixel Art to Beads (PA2B)",
-    tagline: "Upload pixel art and get a bead chart in your brand's colors. Everything runs in your browser; the image is not uploaded anywhere.",
+    tagline: "Upload pixel art and get a bead chart in your brand's colors. Everything runs in your browser; the image is not uploaded anywhere. No AI: just ordinary image processing.",
     language: "Language",
     brand: "Brand",
     image: "Pixel art image",
@@ -105,7 +105,7 @@ const I18N = {
   },
   zh: {
     title: "像素画转拼豆 (PA2B)",
-    tagline: "上传像素画，按所选品牌的颜色生成拼豆图纸。全部在浏览器中运行，图片不会上传到任何地方。",
+    tagline: "上传像素画，按所选品牌的颜色生成拼豆图纸。全部在浏览器中运行，图片不会上传到任何地方。不使用 AI，只是常规的图像处理。",
     language: "语言",
     brand: "品牌",
     image: "像素画图片",
